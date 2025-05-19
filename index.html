@@ -4,7 +4,7 @@
 
   <meta charset="UTF-8">
   <title>Rejestracja czasu pracy</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://accounts.google.com/gsi/client"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -178,10 +178,7 @@ function initGoogleIdentity() {
 
 
 document.addEventListener("DOMContentLoaded", () => {
-  // najpierw pokaż imiona i projekty z localStorage
   resetForm();
-  
-  // później autoryzuj do zapisu (dostęp do Google Sheets przez POST)
   initGoogleIdentity();
 });
 
