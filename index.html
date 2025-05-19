@@ -426,28 +426,59 @@ function addAnotherProject() {
 
 async function submitData() {
   try {
-    const res = await fetch('https://script.google.com/macros/s/AKfycbzlAoB-dFtObIb5kI6AyV1coKYjI8vJ8OcPe_G_AUwaCS6jaRkH_NMIQOI-vM0VVUsMpg/exec', {
-      method: 'POST',
-      body: JSON.stringify({
-        pracownik: state.worker,
-        wpisy: state.entries
-      }),
-      headers: {
-        'Content-Type': 'application/json'
-      }
+    const values = state.entries.map(entry => [
+      new Date().toLocaleString(),
+      state.worker,
+      entry.project,
+      entry.category,
+      entry.subcategory,
+      entry.hours
+    ]);
+
+    const body = {
+      values: values
+    };
+
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_NAME_SAVE}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: body
     });
-    const result = await res.json();
-    alert("Dane zapisane pomyślnie!");
+
+    alert("Dane zapisane do arkusza!");
     resetForm();
   } catch (error) {
-    alert("Błąd przy zapisie danych.");
-    console.error(error);
+    console.error("Błąd przy zapisie danych:", error);
+    alert("Błąd przy zapisie do arkusza.");
   }
 }
+
 
 const API_KEY = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
 const SHEET_ID = "14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE";
 const SHEET_NAME = "Projekty"; // nazwa zakładki
+const CLIENT_ID = '614198520540-r49n24p0fihcup8eqm76hlb3acj2kba1.apps.googleusercontent.com'; // <-- wklej swój Client ID
+const SHEET_ID = '14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE';
+const SHEET_NAME_SAVE = 'CzasPracy';
+
+function initGoogleAPI() {
+  gapi.load('client:auth2', async () => {
+    await gapi.client.init({
+      apiKey: API_KEY,
+      clientId: CLIENT_ID,
+      discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
+      scope: "https://www.googleapis.com/auth/spreadsheets"
+    });
+
+    // automatyczne logowanie
+    gapi.auth2.getAuthInstance().signIn().then(() => {
+      console.log("Zalogowano do Google");
+    });
+  });
+}
+
 
 async function fetchProjectsFromSheet() {
   try {
@@ -468,6 +499,7 @@ async function fetchProjectsFromSheet() {
 
 
 resetForm();
+initGoogleAPI();
 </script>
 </body>
 </html>
