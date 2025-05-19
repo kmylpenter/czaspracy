@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="pl">
-  
 <head>
-<!-- Google API klient -->
-<script async defer src="https://apis.google.com/js/api.js"></script>
-<!-- Google Identity Services -->
-<script async defer src="https://accounts.google.com/gsi/client"></script>
-
   <meta charset="UTF-8">
   <title>Rejestracja czasu pracy</title>
+
+  <!-- Google API klient -->
+  <script src="https://apis.google.com/js/api.js" defer onload="gapiLoaded()"></script>
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" defer onload="gisLoaded()"></script>
+
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -101,26 +101,6 @@
       max-width: 800px;
     }
     .summary-entry-container {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    width: 100%;
-    max-width: 800px;
-    margin: 10px 0;
-    }
-
-    .total-hours {
-    font-size: 1.5rem;
-    font-weight: bold;
-    }
-    .total-hours.red {
-    color: #d80000;
-    }
-    .total-hours.green {
-    color: #006400;
-    }
-
-    .summary-entry-container {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 16px;
@@ -128,21 +108,17 @@
       max-width: 800px;
       margin: 20px auto;
     }
-
     .total-hours {
       font-size: 1.2rem;
       font-weight: bold;
       margin-left: 20px;
     }
-
     .total-hours.red {
       color: #d80000;
     }
-
     .total-hours.green {
       color: #006400;
     }
-
     .remove-btn {
       float: right;
       background: none;
@@ -155,431 +131,295 @@
     .remove-btn:hover {
       color: #ff0000;
     }
-
   </style>
 </head>
 <body>
 
-<div class="nav-bar" id="backButtonContainer">
-  <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
-</div>
+  <div class="nav-bar" id="backButtonContainer">
+    <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
+  </div>
 
-<h2 id="step-title">Wybierz swoje imię</h2>
+  <h2 id="step-title">Wybierz swoje imię</h2>
 
-<div class="screen active" id="step1">
-  <div class="grid" id="workers"></div>
-</div>
-<div class="screen" id="step2">
-  <button onclick="updateProjects()">🔄 Aktualizuj projekty</button>
-  <div class="grid" id="projects"></div>
-</div>
+  <div class="screen active" id="step1">
+    <div class="grid" id="workers"></div>
+  </div>
+  <div class="screen" id="step2">
+    <button onclick="updateProjects()">🔄 Aktualizuj projekty</button>
+    <div class="grid" id="projects"></div>
+  </div>
+  <div class="screen" id="step3">
+    <div class="grid" id="categories"></div>
+  </div>
+  <div class="screen" id="step4">
+    <div class="grid" id="subcategories"></div>
+    <h3>Wybierz liczbę godzin:</h3>
+    <div class="hour-options" id="hourTiles"></div>
+  </div>
+  <div class="screen" id="step5">
+    <h2>Podsumowanie</h2>
+    <div id="summary"></div>
+    <p><strong>Łączna liczba godzin:</strong> <span id="totalHours">0</span> h</p>
+    <button onclick="addAnotherProject()">Dodaj kolejny projekt</button>
+    <button onclick="resetForm()">Zacznij od nowa</button>
+    <button onclick="submitData()">Zapisz</button>
+  </div>
 
-<div class="screen" id="step3">
-  <div class="grid" id="categories"></div>
-</div>
-<div class="screen" id="step4">
-  <div class="grid" id="subcategories"></div>
-  <h3>Wybierz liczbę godzin:</h3>
-  <div class="hour-options" id="hourTiles"></div>
-</div>
-<div class="screen" id="step5">
-  <h2>Podsumowanie</h2>
-  <div id="summary"></div>
-  <p><strong>Łączna liczba godzin:</strong> <span id="totalHours">0</span> h</p>
-  <button onclick="addAnotherProject()">Dodaj kolejny projekt</button>
-  <button onclick="resetForm()">Zacznij od nowa</button>
-  <button onclick="submitData()">Zapisz</button>
-</div>
+  <script>
+    // ————— USTAWIENIA —————
+    const API_KEY         = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
+    const CLIENT_ID       = "614198520540-4ann4cs5o8pchgi1u15q6n08pj87n51o.apps.googleusercontent.com";
+    const SPREADSHEET_ID  = "14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE";
+    const DISCOVERY_DOCS  = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
+    const SCOPES          = "https://www.googleapis.com/auth/spreadsheets";
+    const SHEET_NAME_LOAD = "Projekty";
+    const SHEET_NAME_SAVE = "CzasPracy";
 
-<script>
+    // ————— ZMIENNE STANU OAuth —————
+    let tokenClient;
+    let gapiInited = false;
+    let gisInited  = false;
 
-let projects = [];
+    // ————— CALLBACKI ŁADOWANIA BIBLIOTEK —————
+    function gapiLoaded() {
+      gapi.load('client', () =>
+        gapi.client.init({ apiKey: API_KEY, discoveryDocs: DISCOVERY_DOCS })
+          .then(() => { gapiInited = true; })
+      );
+    }
 
-// === LISTA PRACOWNIKÓW ===
-// Dodaj lub usuń imiona według potrzeby
-const workers = [
-  "Jan",
-  "Anna",
-  "Kamil",
-  "Zuzia",
-  "Marek",
-  "Ola"
-];
+    function gisLoaded() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (resp) => {
+          if (resp.error) {
+            console.error("Token error:", resp);
+            return;
+          }
+          actuallySubmitData();
+        }
+      });
+      gisInited = true;
+    }
 
-function loadProjectsFromStorage() {
-  const stored = localStorage.getItem('projekty');
-  projects = stored ? JSON.parse(stored) : [];
-}
-
-function updateProjects() {
-  fetchProjectsFromSheet();
-}
-
-
-
-
-// === KATEGORIE GŁÓWNE ===
-// Dodaj/zmień kategorie pracy
-const categories = [
-  "Stal",
-  "Drewno",
-  "Montaż",
-  "Biuro"
-];
-
-// === ZADANIA DLA KAŻDEJ KATEGORII ===
-// Możesz dodać nowe lub edytować istniejące
-const subcategoriesMap = {
-  "Stal": [
-    "Spawanie",
-    "Cięcie",
-    "Szlifowanie",
-    "Malowanie proszkowe"
-  ],
-  "Drewno": [
-    "Szlifowanie",
-    "Lakierowanie",
-    "Docinanie",
-    "Klejenie"
-  ],
-  "Montaż": [
-    "Transport",
-    "Instalacja",
-    "Dostosowanie",
-    "Pomiar na miejscu"
-  ],
-  "Biuro": [
-    "Mailing",
-    "Faktury",
-    "Telefon",
-    "Projektowanie"
-  ]
-};
-
-
-let state = {
-  worker: null,
-  entries: []
-};
-let currentEntry = null;
-let currentStep = 1;
-
-function showStep(step) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(`step${step}`).classList.add('active');
-  const titles = ["Wybierz swoje imię", "Wybierz projekt", "Wybierz kategorię", "Wybierz zadanie", "Podsumowanie"];
-  document.getElementById('step-title').innerText = titles[step - 1];
-  document.getElementById('backButtonContainer').style.display = (step === 1) ? 'none' : 'block';
-  currentStep = step;
-}
-
-function goBack() {
-  if (currentStep > 1) {
-    showStep(currentStep - 1);
-  }
-}
-
-function renderTiles(containerId, items, onClick) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
-  items.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'tile';
-    div.innerText = item;
-    div.onclick = () => {
-      [...container.children].forEach(c => c.classList.remove('selected'));
-      div.classList.add('selected');
-      onClick(item);
+    // ————— DANE APLIKACJI —————
+    const workers = ["Jan","Anna","Kamil","Zuzia","Marek","Ola"];
+    const categories = ["Stal","Drewno","Montaż","Biuro"];
+    const subcategoriesMap = {
+      "Stal": ["Spawanie","Cięcie","Szlifowanie","Malowanie proszkowe"],
+      "Drewno": ["Szlifowanie","Lakierowanie","Docinanie","Klejenie"],
+      "Montaż": ["Transport","Instalacja","Dostosowanie","Pomiar na miejscu"],
+      "Biuro": ["Mailing","Faktury","Telefon","Projektowanie"]
     };
-    container.appendChild(div);
-  });
-}
+    let projects = [];
+    let state = { worker: null, entries: [] };
+    let currentEntry = null;
+    let currentStep = 1;
 
-async function resetForm() {
-  state = { worker: null, entries: [] };
-  showStep(1);
+    // ————— POMOCNICZE —————
+    function showStep(step) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(`step${step}`).classList.add('active');
+      const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
+      document.getElementById('step-title').innerText = titles[step-1];
+      document.getElementById('backButtonContainer').style.display = (step===1?'none':'block');
+      currentStep = step;
+      if (step === 4) renderHourTiles();
+    }
 
-  loadProjectsFromStorage();
+    function goBack() {
+      if (currentStep > 1) showStep(currentStep - 1);
+    }
 
-  renderTiles('workers', workers, worker => {
-    state.worker = worker;
-    showStep(2);
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
-  });
-}
+    function renderTiles(containerId, items, onClick) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'tile';
+        div.innerText = item;
+        div.onclick = () => {
+          [...container.children].forEach(c => c.classList.remove('selected'));
+          div.classList.add('selected');
+          onClick(item);
+        };
+        container.appendChild(div);
+      });
+    }
 
+    // ————— RESET I START —————
+    function loadProjectsFromStorage() {
+      const stored = localStorage.getItem('projekty');
+      projects = stored ? JSON.parse(stored) : [];
+    }
 
-function addCustomProject() {
-  const customName = prompt("Podaj nazwę projektu:");
-  if (customName) {
-    projects.push(customName);
-    selectProject(customName);
-  }
-}
+    async function resetForm() {
+      state = { worker: null, entries: [] };
+      loadProjectsFromStorage();
+      showStep(1);
+      renderTiles('workers', workers, worker => {
+        state.worker = worker;
+        showStep(2);
+        renderTiles('projects', projects, selectProject);
+        addCustomProjectTile();
+      });
+    }
 
-function selectProject(project) {
-  currentEntry = { project, category: null, subcategory: null, hours: 0 };
-  showStep(3);
-  renderTiles('categories', categories, category => {
-    currentEntry.category = category;
-    showStep(4);
-    renderTiles('subcategories', subcategoriesMap[category], subcat => {
-      currentEntry.subcategory = subcat;
-      tryFinishEntry();
-    });
-  });
-}
+    // ————— DYNAMICZNE TILES —————
+    function addCustomProject() {
+      const customName = prompt("Podaj nazwę projektu:");
+      if (customName) {
+        projects.push(customName);
+        selectProject(customName);
+      }
+    }
+    function addCustomProjectTile() {
+      const t = document.createElement('div');
+      t.className = 'tile';
+      t.innerText = '+ Dodaj projekt';
+      t.onclick = addCustomProject;
+      document.getElementById('projects').appendChild(t);
+    }
 
-function tryFinishEntry() {
-  if (currentEntry.subcategory && currentEntry.hours > 0) {
-    state.entries.push({ ...currentEntry });
-    showStep(5);
-    renderSummary();
-  }
-}
+    function selectProject(project) {
+      currentEntry = { project, category:null, subcategory:null, hours:0 };
+      showStep(3);
+      renderTiles('categories', categories, cat => {
+        currentEntry.category = cat;
+        showStep(4);
+        renderTiles('subcategories', subcategoriesMap[cat], subcat => {
+          currentEntry.subcategory = subcat;
+          tryFinishEntry();
+        });
+      });
+    }
 
+    function renderHourTiles() {
+      const c = document.getElementById('hourTiles');
+      c.innerHTML = '';
+      for (let i=1; i<=16; i++){
+        const d = document.createElement('div');
+        d.className = 'tile';
+        d.innerText = i;
+        d.onclick = () => {
+          currentEntry.hours = i;
+          tryFinishEntry();
+        };
+        c.appendChild(d);
+      }
+    }
 
-function renderHourTiles() {
-  const container = document.getElementById('hourTiles');
-  container.innerHTML = '';
-  for (let i = 1; i <= 16; i++) {
-    const div = document.createElement('div');
-    div.className = 'tile';
-    div.innerText = i;
-    div.onclick = () => {
-      currentEntry.hours = i;
-      tryFinishEntry();
-    };
-    container.appendChild(div);
-  }
-}
+    function tryFinishEntry() {
+      if (currentEntry.subcategory && currentEntry.hours>0) {
+        state.entries.push({ ...currentEntry });
+        showStep(5);
+        renderSummary();
+      }
+    }
 
+    function renderSummary() {
+      const summary = document.getElementById('summary');
+      let total = 0;
+      summary.innerHTML = '';
+      const header = document.createElement('p');
+      header.innerHTML = `<strong>Pracownik:</strong> ${state.worker}`;
+      summary.appendChild(header);
+      const container = document.createElement('div');
+      container.className = 'summary-entry-container';
+      state.entries.forEach((e,i) => {
+        total += e.hours;
+        const div = document.createElement('div');
+        div.className = 'summary-entry';
+        div.innerHTML = `
+          <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
+          <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
+          <div class="hour-options">
+            ${Array.from({length:16},(_,h)=>{
+              const hv = h+1;
+              return `<div class="tile ${e.hours===hv?'selected':''}" onclick="updateHours(${i},${hv})">${hv}</div>`;
+            }).join('')}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+      summary.appendChild(container);
+      const totalSpan = document.getElementById('totalHours');
+      totalSpan.innerText = total;
+      totalSpan.className = `total-hours ${total>9?'red':'green'}`;
+    }
 
-function renderSummary() {
-  const summary = document.getElementById('summary');
-  let total = 0;
+    function removeEntry(idx) {
+      state.entries.splice(idx,1);
+      renderSummary();
+    }
+    function updateHours(idx,val) {
+      state.entries[idx].hours = val;
+      renderSummary();
+    }
+    function addAnotherProject(){
+      showStep(2);
+      renderTiles('projects', projects, selectProject);
+      addCustomProjectTile();
+    }
 
-  const header = document.createElement('p');
-  header.innerHTML = `<strong>Pracownik:</strong> ${state.worker}`;
-
-  const totalSpan = document.createElement('span');
-  totalSpan.id = 'totalHours';
-  totalSpan.className = 'total-hours';
-
-  const wrapper = document.createElement('div');
-  wrapper.style.display = 'flex';
-  wrapper.style.alignItems = 'center';
-  wrapper.appendChild(header);
-  wrapper.appendChild(totalSpan);
-
-  summary.innerHTML = '';
-  summary.appendChild(wrapper);
-
-  const container = document.createElement('div');
-  container.className = 'summary-entry-container';
-
-  state.entries.forEach((e, i) => {
-    total += e.hours;
-    const div = document.createElement('div');
-    div.className = 'summary-entry';
-    div.innerHTML = `
-      <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
-      <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
-      <div class="hour-options">
-        ${Array.from({ length: 16 }, (_, h) => {
-          const hourVal = h + 1;
-          return `<div class="tile ${e.hours === hourVal ? 'selected' : ''}" onclick="updateHours(${i}, ${hourVal})">${hourVal}</div>`;
-        }).join('')}
-      </div>
-    `;
-    container.appendChild(div);
-  });
-
-  summary.appendChild(container);
-
-  totalSpan.innerText = `Łącznie: ${total} h`;
-  totalSpan.classList.add(total > 9 ? 'red' : 'green');
-}
-
-function removeEntry(index) {
-  state.entries.splice(index, 1);
-  renderSummary();
-}
-
-function addCustomProjectTile() {
-  const customTile = document.createElement('div');
-  customTile.className = 'tile';
-  customTile.innerText = '+ Dodaj projekt';
-  customTile.onclick = addCustomProject;
-  document.getElementById('projects').appendChild(customTile);
-}
-
-
-function updateHours(index, value) {
-  state.entries[index].hours = value;
-  renderSummary();
-}
-
-function addAnotherProject() {
-  showStep(2);
-  renderTiles('projects', projects, selectProject);
-  addCustomProjectTile();
-}
-
-
-
-function submitData() {
-  // 1) Upewnij się, że biblioteki są załadowane
-  if (!gapiInited || !gisInited) {
-    alert("Proszę chwilę poczekać – trwa inicjalizacja Google API.");
-    return;
-  }
-
-  // 2) Jeśli nie mamy tokenu, poproś o dostęp
-  const token = gapi.client.getToken();
-  if (!token) {
-    // wymusz prompt przy pierwszym logowaniu
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-  } else {
-    // mamy już token – idź od razu do zapisu
-    actuallySubmitData();
-  }
-}
-
-async function actuallySubmitData() {
-  try {
-    // 3) Przygotuj dane do zapisu
-    const values = state.entries.map(entry => [
-      new Date().toLocaleString(),   // data i czas w lokalnej strefie
-      state.worker,
-      entry.project,
-      entry.category,
-      entry.subcategory,
-      entry.hours
-    ]);
-    const body = { values };
-
-    // 4) Wywołanie Google Sheets API
-    const response = await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME_SAVE}!A1`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      resource: body
-    });
-
-    alert("Dane zapisane w arkuszu CzasPracy!");
-    // 5) zresetuj formularz
-    resetForm();
-  } catch (err) {
-    console.error("Błąd przy zapisie:", err);
-    alert("Nie udało się zapisać danych.");
-  }
-}
-
-
-
-
-const SHEET_NAME2 = "Projekty"; // nazwa zakładki
-const SHEET_NAME_SAVE   = 'CzasPracy';
-const DISCOVERY_DOC     = ['https://sheets.googleapis.com/$discovery/rest?version=v4'];
-const SCOPES            = 'https://www.googleapis.com/auth/spreadsheets';
-
-// =======================================
-// USTAWIENIA
-// =======================================
-const API_KEY = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
-const CLIENT_ID = '614198520540-4ann4cs5o8pchgi1u15q6n08pj87n51o.apps.googleusercontent.com'; // <-- wklej swój Client ID
-const SPREADSHEET_ID     = '14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE';
-const SHEET_NAME_SAVE   = 'CzasPracy';
-const DISCOVERY_DOC     = ['https://sheets.googleapis.com/$discovery/rest?version=v4'];
-const SCOPES            = 'https://www.googleapis.com/auth/spreadsheets';
-
-// =======================================
-// ZMIENNE STANU
-// =======================================
-let tokenClient;
-let gapiInited = false;
-let gisInited  = false;
-
-// =======================================
-// FUNKCJE INICJALIZUJĄCE
-// =======================================
-function gapiLoaded() {
-  gapi.load('client', initializeGapiClient);
-}
-
-async function initializeGapiClient() {
-  await gapi.client.init({
-    apiKey: API_KEY,
-    discoveryDocs: DISCOVERY_DOC
-  });
-  gapiInited = true;
-}
-
-function gisLoaded() {
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: (tokenResponse) => {
-      if (tokenResponse.error) {
-        console.error('Token error', tokenResponse);
+    // ————— ZAPIS DO SHEETS —————
+    function submitData() {
+      if (!gapiInited || !gisInited) {
+        alert("Trwa inicjalizacja Google API, spróbuj za chwilę.");
         return;
       }
-      // po otrzymaniu tokenu – wykonaj właściwe zapisanie
-      actuallySubmitData();
+      const tok = gapi.client.getToken();
+      if (!tok) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      } else {
+        actuallySubmitData();
+      }
     }
-  });
-  gisInited = true;
-}
 
-// wywołaj je zaraz po załadowaniu <script async>:
-window.addEventListener('load', () => {
-  // biblioteka gapi
-  gapiLoaded();
-  // biblioteka GIS
-  gisLoaded();
-});
+    async function actuallySubmitData() {
+      try {
+        const values = state.entries.map(e => [
+          new Date().toLocaleString(),
+          state.worker, e.project, e.category, e.subcategory, e.hours
+        ]);
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${SHEET_NAME_SAVE}!A1`,
+          valueInputOption: 'USER_ENTERED',
+          insertDataOption: 'INSERT_ROWS',
+          resource: { values }
+        });
+        alert("Dane zapisane w zakładce CzasPracy!");
+        resetForm();
+      } catch (err) {
+        console.error("Błąd zapisu:", err);
+        alert("Nie udało się zapisać danych.");
+      }
+    }
 
+    // ————— POBIERANIE PROJEKTÓW —————
+    async function fetchProjectsFromSheet() {
+      try {
+        const res = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME_LOAD}!A2:A?key=${API_KEY}`
+        );
+        const data = await res.json();
+        if (!data.values) throw new Error("Brak danych");
+        projects = data.values.flat().filter(Boolean);
+        localStorage.setItem('projekty', JSON.stringify(projects));
+        renderTiles('projects', projects, selectProject);
+        addCustomProjectTile();
+        alert("Zaktualizowano projekty z Google Sheets.");
+      } catch (e) {
+        console.error(e);
+        alert("Nie udało się pobrać projektów.");
+      }
+    }
 
-function initGoogleAPI() {
-  gapi.load('client:auth2', async () => {
-    await gapi.client.init({
-      apiKey: API_KEY,
-      clientId: CLIENT_ID,
-      discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
-      scope: "https://www.googleapis.com/auth/spreadsheets"
-    });
+    // ————— START —————
+    resetForm();
+  </script>
 
-    // automatyczne logowanie
-    gapi.auth2.getAuthInstance().signIn().then(() => {
-      console.log("Zalogowano do Google");
-    });
-  });
-}
-
-
-async function fetchProjectsFromSheet() {
-  try {
-    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME2}!A2:A?key=${API_KEY}`);
-    const data = await res.json();
-    if (!data.values) throw new Error("Brak danych");
-
-    const projects = data.values.flat().filter(Boolean);
-    localStorage.setItem("projekty", JSON.stringify(projects));
-    renderTiles("projects", projects, selectProject);
-    addCustomProjectTile();
-    alert("Zaktualizowano projekty z Google Sheets.");
-  } catch (err) {
-    console.error("Błąd przy pobieraniu projektów:", err);
-    alert("Nie udało się pobrać projektów z arkusza.");
-  }
-}
-
-
-resetForm();
-initGoogleAPI();
-</script>
 </body>
 </html>
