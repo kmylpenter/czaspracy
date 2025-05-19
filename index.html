@@ -2,6 +2,11 @@
 <html lang="pl">
   
 <head>
+<!-- Google API klient -->
+<script async defer src="https://apis.google.com/js/api.js"></script>
+<!-- Google Identity Services -->
+<script async defer src="https://accounts.google.com/gsi/client"></script>
+
   <meta charset="UTF-8">
   <title>Rejestracja czasu pracy</title>
   <style>
@@ -424,44 +429,121 @@ function addAnotherProject() {
 
 
 
-async function submitData() {
+function submitData() {
+  // 1) Upewnij się, że biblioteki są załadowane
+  if (!gapiInited || !gisInited) {
+    alert("Proszę chwilę poczekać – trwa inicjalizacja Google API.");
+    return;
+  }
+
+  // 2) Jeśli nie mamy tokenu, poproś o dostęp
+  const token = gapi.client.getToken();
+  if (!token) {
+    // wymusz prompt przy pierwszym logowaniu
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  } else {
+    // mamy już token – idź od razu do zapisu
+    actuallySubmitData();
+  }
+}
+
+async function actuallySubmitData() {
   try {
+    // 3) Przygotuj dane do zapisu
     const values = state.entries.map(entry => [
-      new Date().toLocaleString(),
+      new Date().toLocaleString(),   // data i czas w lokalnej strefie
       state.worker,
       entry.project,
       entry.category,
       entry.subcategory,
       entry.hours
     ]);
+    const body = { values };
 
-    const body = {
-      values: values
-    };
-
-    await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID,
+    // 4) Wywołanie Google Sheets API
+    const response = await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME_SAVE}!A1`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       resource: body
     });
 
-    alert("Dane zapisane do arkusza!");
+    alert("Dane zapisane w arkuszu CzasPracy!");
+    // 5) zresetuj formularz
     resetForm();
-  } catch (error) {
-    console.error("Błąd przy zapisie danych:", error);
-    alert("Błąd przy zapisie do arkusza.");
+  } catch (err) {
+    console.error("Błąd przy zapisie:", err);
+    alert("Nie udało się zapisać danych.");
   }
 }
 
 
+
 const API_KEY = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
-const SHEET_ID = "14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE";
 const SHEET_NAME = "Projekty"; // nazwa zakładki
-const CLIENT_ID = '614198520540-r49n24p0fihcup8eqm76hlb3acj2kba1.apps.googleusercontent.com'; // <-- wklej swój Client ID
+const CLIENT_ID = '614198520540-4ann4cs5o8pchgi1u15q6n08pj87n51o.apps.googleusercontent.com'; // <-- wklej swój Client ID
 const SHEET_ID = '14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE';
-const SHEET_NAME_SAVE = 'CzasPracy';
+const SHEET_NAME_SAVE   = 'CzasPracy';
+const DISCOVERY_DOC     = ['https://sheets.googleapis.com/$discovery/rest?version=v4'];
+const SCOPES            = 'https://www.googleapis.com/auth/spreadsheets';
+
+// =======================================
+// USTAWIENIA
+// =======================================
+const API_KEY       = 'TU_WKLEJ_SWÓJ_API_KEY';
+const CLIENT_ID     = 'TU_WKLEJ_SWÓJ_CLIENT_ID';
+const SPREADSHEET_ID     = '14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE';
+const SHEET_NAME_SAVE   = 'CzasPracy';
+const DISCOVERY_DOC     = ['https://sheets.googleapis.com/$discovery/rest?version=v4'];
+const SCOPES            = 'https://www.googleapis.com/auth/spreadsheets';
+
+// =======================================
+// ZMIENNE STANU
+// =======================================
+let tokenClient;
+let gapiInited = false;
+let gisInited  = false;
+
+// =======================================
+// FUNKCJE INICJALIZUJĄCE
+// =======================================
+function gapiLoaded() {
+  gapi.load('client', initializeGapiClient);
+}
+
+async function initializeGapiClient() {
+  await gapi.client.init({
+    apiKey: API_KEY,
+    discoveryDocs: DISCOVERY_DOC
+  });
+  gapiInited = true;
+}
+
+function gisLoaded() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (tokenResponse) => {
+      if (tokenResponse.error) {
+        console.error('Token error', tokenResponse);
+        return;
+      }
+      // po otrzymaniu tokenu – wykonaj właściwe zapisanie
+      actuallySubmitData();
+    }
+  });
+  gisInited = true;
+}
+
+// wywołaj je zaraz po załadowaniu <script async>:
+window.addEventListener('load', () => {
+  // biblioteka gapi
+  gapiLoaded();
+  // biblioteka GIS
+  gisLoaded();
+});
+
 
 function initGoogleAPI() {
   gapi.load('client:auth2', async () => {
