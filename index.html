@@ -178,8 +178,13 @@ function initGoogleIdentity() {
 
 
 document.addEventListener("DOMContentLoaded", () => {
+  // najpierw pokaż imiona i projekty z localStorage
+  resetForm();
+  
+  // później autoryzuj do zapisu (dostęp do Google Sheets przez POST)
   initGoogleIdentity();
 });
+
 
 
 let state = { worker: null, entries: [] };
