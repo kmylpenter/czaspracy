@@ -206,20 +206,10 @@ function loadProjectsFromStorage() {
   projects = stored ? JSON.parse(stored) : [];
 }
 
-async function updateProjects() {
-  try {
-    const res = await fetch('https://script.google.com/macros/s/AKfycbzlAoB-dFtObIb5kI6AyV1coKYjI8vJ8OcPe_G_AUwaCS6jaRkH_NMIQOI-vM0VVUsMpg/exec');
-    const data = await res.json();
-    projects = data.map(p => p.nazwa);
-    localStorage.setItem('projekty', JSON.stringify(projects));
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
-    alert('Projekty zostały zaktualizowane.');
-  } catch (err) {
-    alert('Błąd przy aktualizacji projektów.');
-    console.error(err);
-  }
+function updateProjects() {
+  fetchProjectsFromSheet();
 }
+
 
 
 
@@ -452,6 +442,27 @@ async function submitData() {
   } catch (error) {
     alert("Błąd przy zapisie danych.");
     console.error(error);
+  }
+}
+
+const API_KEY = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
+const SHEET_ID = "14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE";
+const SHEET_NAME = "Projekty"; // nazwa zakładki
+
+async function fetchProjectsFromSheet() {
+  try {
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A2:A?key=${API_KEY}`);
+    const data = await res.json();
+    if (!data.values) throw new Error("Brak danych");
+
+    const projects = data.values.flat().filter(Boolean);
+    localStorage.setItem("projekty", JSON.stringify(projects));
+    renderTiles("projects", projects, selectProject);
+    addCustomProjectTile();
+    alert("Zaktualizowano projekty z Google Sheets.");
+  } catch (err) {
+    console.error("Błąd przy pobieraniu projektów:", err);
+    alert("Nie udało się pobrać projektów z arkusza.");
   }
 }
 
