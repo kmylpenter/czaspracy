@@ -208,7 +208,7 @@ function loadProjectsFromStorage() {
 
 async function updateProjects() {
   try {
-    const res = await fetch('https://script.google.com/macros/s/AKfycbzJrqGaZSHiuNlgGwRAZUD4tbGgMiOe0pRycwEI-x6hp8wCD_FlewJ8gUvOvqsgrc9fqg/exec');
+    const res = await fetch('https://script.google.com/macros/s/AKfycbzlAoB-dFtObIb5kI6AyV1coKYjI8vJ8OcPe_G_AUwaCS6jaRkH_NMIQOI-vM0VVUsMpg/exec');
     const data = await res.json();
     projects = data.map(p => p.nazwa);
     localStorage.setItem('projekty', JSON.stringify(projects));
@@ -436,7 +436,7 @@ function addAnotherProject() {
 
 async function submitData() {
   try {
-    const res = await fetch('https://script.google.com/macros/s/AKfycbzJrqGaZSHiuNlgGwRAZUD4tbGgMiOe0pRycwEI-x6hp8wCD_FlewJ8gUvOvqsgrc9fqg/exec', {
+    const res = await fetch('https://script.google.com/macros/s/AKfycbzlAoB-dFtObIb5kI6AyV1coKYjI8vJ8OcPe_G_AUwaCS6jaRkH_NMIQOI-vM0VVUsMpg/exec', {
       method: 'POST',
       body: JSON.stringify({
         pracownik: state.worker,
