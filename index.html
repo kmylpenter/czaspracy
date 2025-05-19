@@ -320,9 +320,10 @@ function selectProject(project) {
     currentEntry.category = category;
     showStep(4);
     renderTiles('subcategories', subcategoriesMap[category], subcat => {
-      currentEntry.subcategory = subcat;
-      tryFinishEntry();
-    });
+    currentEntry.subcategory = subcat;
+    renderHourTiles(); // <--- DODAJ TO
+  });
+
   });
 }
 
@@ -457,7 +458,6 @@ async function submitData() {
 
 
 const API_KEY = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
-const SHEET_ID = "14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE";
 const SHEET_NAME = "Projekty"; // nazwa zakładki
 const CLIENT_ID = '614198520540-r49n24p0fihcup8eqm76hlb3acj2kba1.apps.googleusercontent.com'; // <-- wklej swój Client ID
 const SHEET_ID = '14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE';
