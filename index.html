@@ -297,11 +297,11 @@ async function resetForm() {
   loadProjectsFromStorage();
 
   renderTiles('workers', workers, worker => {
-    state.worker = worker;
-    showStep(2);
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
-  });
+  state.worker = worker;
+  showStep(2);
+  renderTiles('projects', projects, selectProject);
+  addCustomProjectTile();
+});
 }
 
 
@@ -498,8 +498,11 @@ async function fetchProjectsFromSheet() {
 }
 
 
-resetForm();
-initGoogleAPI();
+document.addEventListener("DOMContentLoaded", () => {
+  resetForm();
+  initGoogleAPI();
+});
+
 </script>
 </body>
 </html>
