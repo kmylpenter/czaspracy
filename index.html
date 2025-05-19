@@ -2,6 +2,7 @@
 <html lang="pl">
   
 <head>
+<script src="https://apis.google.com/js/api.js"></script>
   <meta charset="UTF-8">
   <title>Rejestracja czasu pracy</title>
   <style>
@@ -187,6 +188,52 @@
 </div>
 
 <script>
+
+const API_KEY = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
+const SHEET_NAME = "Projekty"; // nazwa zakładki
+const CLIENT_ID = '614198520540-r49n24p0fihcup8eqm76hlb3acj2kba1.apps.googleusercontent.com'; // <-- wklej swój Client ID
+const SHEET_ID = '14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE';
+const SHEET_NAME_SAVE = 'CzasPracy';
+
+function initGoogleAPI() {
+  gapi.load('client:auth2', async () => {
+    await gapi.client.init({
+      apiKey: API_KEY,
+      clientId: CLIENT_ID,
+      discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
+      scope: "https://www.googleapis.com/auth/spreadsheets"
+    });
+
+    // automatyczne logowanie
+    gapi.auth2.getAuthInstance().signIn().then(() => {
+      console.log("Zalogowano do Google");
+    });
+  });
+}
+
+
+async function fetchProjectsFromSheet() {
+  try {
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A2:A?key=${API_KEY}`);
+    const data = await res.json();
+    if (!data.values) throw new Error("Brak danych");
+
+    const projects = data.values.flat().filter(Boolean);
+    localStorage.setItem("projekty", JSON.stringify(projects));
+    renderTiles("projects", projects, selectProject);
+    addCustomProjectTile();
+    alert("Zaktualizowano projekty z Google Sheets.");
+  } catch (err) {
+    console.error("Błąd przy pobieraniu projektów:", err);
+    alert("Nie udało się pobrać projektów z arkusza.");
+  }
+}
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  resetForm();
+  initGoogleAPI();
+});
 
 let projects = [];
 
@@ -456,52 +503,6 @@ async function submitData() {
   }
 }
 
-
-const API_KEY = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
-const SHEET_NAME = "Projekty"; // nazwa zakładki
-const CLIENT_ID = '614198520540-r49n24p0fihcup8eqm76hlb3acj2kba1.apps.googleusercontent.com'; // <-- wklej swój Client ID
-const SHEET_ID = '14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE';
-const SHEET_NAME_SAVE = 'CzasPracy';
-
-function initGoogleAPI() {
-  gapi.load('client:auth2', async () => {
-    await gapi.client.init({
-      apiKey: API_KEY,
-      clientId: CLIENT_ID,
-      discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
-      scope: "https://www.googleapis.com/auth/spreadsheets"
-    });
-
-    // automatyczne logowanie
-    gapi.auth2.getAuthInstance().signIn().then(() => {
-      console.log("Zalogowano do Google");
-    });
-  });
-}
-
-
-async function fetchProjectsFromSheet() {
-  try {
-    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A2:A?key=${API_KEY}`);
-    const data = await res.json();
-    if (!data.values) throw new Error("Brak danych");
-
-    const projects = data.values.flat().filter(Boolean);
-    localStorage.setItem("projekty", JSON.stringify(projects));
-    renderTiles("projects", projects, selectProject);
-    addCustomProjectTile();
-    alert("Zaktualizowano projekty z Google Sheets.");
-  } catch (err) {
-    console.error("Błąd przy pobieraniu projektów:", err);
-    alert("Nie udało się pobrać projektów z arkusza.");
-  }
-}
-
-
-document.addEventListener("DOMContentLoaded", () => {
-  resetForm();
-  initGoogleAPI();
-});
 
 </script>
 </body>
