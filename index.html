@@ -131,6 +131,17 @@
     .remove-btn:hover {
       color: #ff0000;
     }
+    
+    .tile-step2 {
+    background-color: #fffbe6;
+}
+.tile-step3 {
+  background-color: #e6fff2;
+}
+.tile-step4 {
+  background-color: #f0e6ff;
+}
+    
   </style>
 </head>
 <body>
@@ -152,10 +163,12 @@
     <div class="grid" id="categories"></div>
   </div>
   <div class="screen" id="step4">
-    <div class="grid" id="subcategories"></div>
+  <div class="grid tile-step4" id="subcategories"></div>
+  <div id="hourSection" style="display:none;">
     <h3>Wybierz liczbę godzin:</h3>
     <div class="hour-options" id="hourTiles"></div>
   </div>
+</div>
   <div class="screen" id="step5">
     <h2>Podsumowanie</h2>
     <div id="summary"></div>
@@ -233,20 +246,23 @@
     }
 
     function renderTiles(containerId, items, onClick) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = '';
-      items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'tile';
-        div.innerText = item;
-        div.onclick = () => {
-          [...container.children].forEach(c => c.classList.remove('selected'));
-          div.classList.add('selected');
-          onClick(item);
-        };
-        container.appendChild(div);
-      });
-    }
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  
+  const stepClass = container.className.match(/tile-step\d/)?.[0] || '';
+  
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = `tile ${stepClass}`;
+    div.innerText = item;
+    div.onclick = () => {
+      [...container.children].forEach(c => c.classList.remove('selected'));
+      div.classList.add('selected');
+      onClick(item);
+    };
+    container.appendChild(div);
+  });
+}
 
     // ————— RESET I START —————
     function loadProjectsFromStorage() {
@@ -289,9 +305,9 @@
         currentEntry.category = cat;
         showStep(4);
         renderTiles('subcategories', subcategoriesMap[cat], subcat => {
-          currentEntry.subcategory = subcat;
-          tryFinishEntry();
-        });
+  currentEntry.subcategory = subcat;
+  document.getElementById('hourSection').style.display = 'block';
+});
       });
     }
 
