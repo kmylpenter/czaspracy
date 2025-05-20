@@ -399,6 +399,8 @@ async function fetchWorkerStatuses() {
 
 
     function renderTiles(containerId, items, onClick, statusMap = {}) {
+console.log("Rendertiles", { containerId, items, statusMap });
+
   const container = document.getElementById(containerId);
   container.innerHTML = '';
   const step = currentStep;
