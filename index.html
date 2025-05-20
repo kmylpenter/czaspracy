@@ -144,10 +144,10 @@
   <div class="screen active" id="step1">
     <div class="grid" id="workers"></div>
   </div>
-  <div class="screen" id="step2">
-    <button onclick="updateProjects()">🔄 Aktualizuj projekty</button>
-    <div class="grid" id="projects"></div>
-  </div>
+<div class="screen" id="step2">
+  <button onclick="fetchProjectsFromSheet()">🔄 Aktualizuj projekty</button>
+  <div class="grid" id="projects"></div>
+</div>
   <div class="screen" id="step3">
     <div class="grid" id="categories"></div>
   </div>
@@ -420,6 +420,24 @@
     // ————— START —————
     resetForm();
   </script>
-
+<!-- Eruda: konsola na urządzeniach mobilnych -->
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    eruda.init({
+      // które narzędzia pokazać
+      tool: ['console', 'elements', 'network', 'resources'],
+      // domyślne opcje
+      defaults: {
+        // automatycznie pokaż panel po init()
+        autoShow: true,
+        // procent wysokości ekranu dla panelu
+        displaySize: 40
+      }
+    });
+    // wymuszone otwarcie
+    eruda.show();
+  });
+</script>
 </body>
 </html>
