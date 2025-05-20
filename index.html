@@ -210,40 +210,54 @@ async function showRecentEntries() {
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME_SAVE}!A2:F`
+      range: `${SHEET_NAME_SAVE}!A2:F`,
     });
+
     const allEntries = res.result.values || [];
     const recent = allEntries.filter(row => {
       const d = new Date(row[0]);
-      return d >= oneWeekAgo;
+      return !isNaN(d) && d >= oneWeekAgo;
     });
 
     const html = `
-      <div style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
+      <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
                   background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
-                  max-height:80vh; overflow:auto; z-index:9999;">
+                  max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
         <h3>Ostatnie wpisy</h3>
-        <table style="font-size:0.9rem; border-collapse:collapse;">
+        <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
           <thead>
-            <tr><th>Data</th><th>Pracownik</th><th>Projekt</th><th>Kategoria</th><th>Zadanie</th><th>Godziny</th></tr>
+            <tr>
+              <th style="border-bottom:1px solid #ccc;">Data</th>
+              <th style="border-bottom:1px solid #ccc;">Pracownik</th>
+              <th style="border-bottom:1px solid #ccc;">Projekt</th>
+              <th style="border-bottom:1px solid #ccc;">Kategoria</th>
+              <th style="border-bottom:1px solid #ccc;">Zadanie</th>
+              <th style="border-bottom:1px solid #ccc;">Godziny</th>
+            </tr>
           </thead>
           <tbody>
-            ${recent.map(r => `<tr>${r.map(v => `<td style="border:1px solid #ccc; padding:4px;">${v}</td>`).join('')}</tr>`).join('')}
+            ${recent.map(row => `
+              <tr>
+                ${row.map(col => `<td style="border:1px solid #eee; padding:4px;">${col}</td>`).join('')}
+              </tr>
+            `).join('')}
           </tbody>
         </table>
         <div style="text-align:center; margin-top:10px;">
-          <button onclick="this.parentElement.parentElement.remove()">Zamknij</button>
+          <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
         </div>
       </div>
     `;
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    document.body.appendChild(div);
+
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
   } catch (e) {
     console.error("Błąd pobierania wpisów:", e);
     showToast("Nie udało się pobrać wpisów", true);
   }
 }
+
 function showToast(msg, isError = false) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
