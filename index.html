@@ -109,7 +109,7 @@
       margin: 20px auto;
     }
     .total-hours {
-      font-size: 1.2rem;
+      font-size: 2.5rem;
       font-weight: bold;
       margin-left: 20px;
     }
@@ -164,10 +164,25 @@
 #toast.error {
   background: #d80000;
 }
+
+.tile-status-green {
+  background: #d4edda !important;
+  border: 2px solid #28a745;
+}
+.tile-status-yellow {
+  background: #fff3cd !important;
+  border: 2px solid #ffc107;
+}
+.tile-status-red {
+  background: #f8d7da !important;
+  border: 2px solid #dc3545;
+}
+
     
   </style>
 </head>
 <body>
+<h3 id="clock" style="margin-top: 0;"></h3>
 
   <div class="nav-bar" id="backButtonContainer">
     <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
@@ -267,6 +282,18 @@ function showToast(msg, isError = false) {
     toast.style.display = 'none';
   }, 5000);
 }
+
+function updateClock() {
+  const now = new Date();
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const dateStr = now.toLocaleDateString('pl-PL', options);
+  const timeStr = now.toLocaleTimeString('pl-PL');
+  document.getElementById('clock').innerText = `${dateStr}, ${timeStr}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+
     // ————— USTAWIENIA —————
     const API_KEY         = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
     const CLIENT_ID       = "614198520540-4ann4cs5o8pchgi1u15q6n08pj87n51o.apps.googleusercontent.com";
@@ -333,7 +360,45 @@ function showToast(msg, isError = false) {
       if (currentStep > 1) showStep(currentStep - 1);
     }
 
-    function renderTiles(containerId, items, onClick) {
+async function fetchWorkerStatuses() {
+  const statusMap = {}; // { "Kamil": "green" / "yellow" / "red" }
+  try {
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME_SAVE}!A2:F`,
+    });
+    const entries = res.result.values || [];
+
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const formatDate = (d) => d.toISOString().split('T')[0];
+
+    const todayStr = formatDate(today);
+    const yesterdayStr = formatDate(yesterday);
+
+    workers.forEach(worker => {
+      const hasToday = entries.some(row =>
+        row[0]?.startsWith(todayStr) && row[1] === worker
+      );
+      const hasYesterday = entries.some(row =>
+        row[0]?.startsWith(yesterdayStr) && row[1] === worker
+      );
+
+      if (hasToday) statusMap[worker] = 'green';
+      else if (hasYesterday) statusMap[worker] = 'yellow';
+      else statusMap[worker] = 'red';
+    });
+  } catch (e) {
+    console.error("Błąd pobierania statusów pracowników:", e);
+    showToast("Nie udało się sprawdzić, kto się wpisał.", true);
+  }
+  return statusMap;
+}
+
+
+    function renderTiles(containerId, items, onClick, statusMap = {}) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
   const step = currentStep;
@@ -348,6 +413,12 @@ function showToast(msg, isError = false) {
   items.forEach(item => {
     const div = document.createElement('div');
     div.className = `tile ${stepClass}`;
+
+    // Dodaj klasę statusu (jeśli dotyczy)
+    if (statusMap[item]) {
+      div.classList.add(`tile-status-${statusMap[item]}`);
+    }
+
     div.innerText = item;
     div.onclick = () => {
       div.classList.add('clicked');
@@ -360,6 +431,7 @@ function showToast(msg, isError = false) {
   });
 }
 
+
     // ————— RESET I START —————
     function loadProjectsFromStorage() {
       const stored = localStorage.getItem('projekty');
@@ -370,12 +442,15 @@ function showToast(msg, isError = false) {
       state = { worker: null, entries: [] };
       loadProjectsFromStorage();
       showStep(1);
-      renderTiles('workers', workers, worker => {
-        state.worker = worker;
-        showStep(2);
-        renderTiles('projects', projects, selectProject);
-        addCustomProjectTile();
-      });
+      fetchWorkerStatuses().then(statusMap => {
+  renderTiles('workers', workers, worker => {
+    state.worker = worker;
+    showStep(2);
+    renderTiles('projects', projects, selectProject);
+    addCustomProjectTile();
+  }, statusMap);
+});
+
     }
 
     // ————— DYNAMICZNE TILES —————
