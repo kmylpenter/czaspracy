@@ -364,7 +364,8 @@
     }
 
     // ————— ZAPIS DO SHEETS —————
-    function submitData() {
+    
+function submitData() {
   const values = state.entries.map(e => [
     new Date().toLocaleString(),
     state.worker,
@@ -381,12 +382,14 @@
     })
     .then(res => res.text())
     .then(msg => {
+      console.log("Odpowiedź z serwera:", msg);
+      if (msg.includes("Błąd")) throw new Error(msg);
       alert("Dane zostały zapisane!");
       resetForm();
     })
     .catch(err => {
-      console.error("Błąd zapisu:", err);
-      alert("Nie udało się zapisać danych.");
+      console.error("Błąd zapisu:", err.message);
+      alert("Nie udało się zapisać danych: " + err.message);
     });
 }
 
