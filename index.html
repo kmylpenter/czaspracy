@@ -132,14 +132,37 @@
       color: #ff0000;
     }
     
-    .tile-step2 {
-    background-color: #fffbe6;
+    .tile-step1 { background: #ffffff; }
+.tile-step2 { background: #e6f7ff; }
+.tile-step3 { background: #fdf5e6; }
+.tile-step4 { background: #e6ffe6; }
+
+.tile.clicked {
+  animation: pop 0.2s ease-out;
 }
-.tile-step3 {
-  background-color: #e6fff2;
+
+@keyframes pop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
-.tile-step4 {
-  background-color: #f0e6ff;
+
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #28a745;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 1rem;
+  display: none;
+  z-index: 9999;
+}
+
+#toast.error {
+  background: #d80000;
 }
     
   </style>
@@ -148,9 +171,11 @@
 
   <div class="nav-bar" id="backButtonContainer">
     <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
+    <button class="back-button" style="float:right;" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
+
   </div>
 
-  <h2 id="step-title">Wybierz swoje imię</h2>
+  <h2 id="step-title">Jak masz na imię?</h2>
 
   <div class="screen active" id="step1">
     <div class="grid" id="workers"></div>
@@ -179,6 +204,55 @@
   </div>
 
   <script>
+async function showRecentEntries() {
+  try {
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME_SAVE}!A2:F`
+    });
+    const allEntries = res.result.values || [];
+    const recent = allEntries.filter(row => {
+      const d = new Date(row[0]);
+      return d >= oneWeekAgo;
+    });
+
+    const html = `
+      <div style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
+                  background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+                  max-height:80vh; overflow:auto; z-index:9999;">
+        <h3>Ostatnie wpisy</h3>
+        <table style="font-size:0.9rem; border-collapse:collapse;">
+          <thead>
+            <tr><th>Data</th><th>Pracownik</th><th>Projekt</th><th>Kategoria</th><th>Zadanie</th><th>Godziny</th></tr>
+          </thead>
+          <tbody>
+            ${recent.map(r => `<tr>${r.map(v => `<td style="border:1px solid #ccc; padding:4px;">${v}</td>`).join('')}</tr>`).join('')}
+          </tbody>
+        </table>
+        <div style="text-align:center; margin-top:10px;">
+          <button onclick="this.parentElement.parentElement.remove()">Zamknij</button>
+        </div>
+      </div>
+    `;
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div);
+  } catch (e) {
+    console.error("Błąd pobierania wpisów:", e);
+    showToast("Nie udało się pobrać wpisów", true);
+  }
+}
+function showToast(msg, isError = false) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.toggle('error', isError);
+  toast.style.display = 'block';
+  setTimeout(() => {
+    toast.style.display = 'none';
+  }, 5000);
+}
     // ————— USTAWIENIA —————
     const API_KEY         = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
     const CLIENT_ID       = "614198520540-4ann4cs5o8pchgi1u15q6n08pj87n51o.apps.googleusercontent.com";
@@ -217,7 +291,7 @@
     }
 
     // ————— DANE APLIKACJI —————
-    const workers = ["Jan","Anna","Kamil","Zuzia","Marek","Ola"];
+    const workers = ["Kamil","Paweł","Piotr","Przemek","Robert"];
     const categories = ["Stal","Drewno","Montaż","Biuro"];
     const subcategoriesMap = {
       "Stal": ["Spawanie","Cięcie","Szlifowanie","Malowanie proszkowe"],
@@ -248,14 +322,22 @@
     function renderTiles(containerId, items, onClick) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
-  
-  const stepClass = container.className.match(/tile-step\d/)?.[0] || '';
-  
+  const step = currentStep;
+
+  const stepClass = {
+    1: 'tile-step1',
+    2: 'tile-step2',
+    3: 'tile-step3',
+    4: 'tile-step4'
+  }[step] || 'tile';
+
   items.forEach(item => {
     const div = document.createElement('div');
     div.className = `tile ${stepClass}`;
     div.innerText = item;
     div.onclick = () => {
+      div.classList.add('clicked');
+      setTimeout(() => div.classList.remove('clicked'), 200);
       [...container.children].forEach(c => c.classList.remove('selected'));
       div.classList.add('selected');
       onClick(item);
@@ -406,8 +488,8 @@
           insertDataOption: 'INSERT_ROWS',
           resource: { values }
         });
-        alert("Dane zapisane w zakładce CzasPracy!");
         resetForm();
+showToast("Dane zostały zapisane!");
       } catch (err) {
         console.error("Błąd zapisu:", err);
         alert("Nie udało się zapisać danych.");
@@ -426,7 +508,7 @@
         localStorage.setItem('projekty', JSON.stringify(projects));
         renderTiles('projects', projects, selectProject);
         addCustomProjectTile();
-        alert("Zaktualizowano projekty z Google Sheets.");
+        showToast("Zaktualizowano projekty z bazy.");
       } catch (e) {
         console.error(e);
         alert("Nie udało się pobrać projektów.");
@@ -455,5 +537,6 @@
     eruda.show();
   });
 </script>
+<div id="toast"></div>
 </body>
 </html>
