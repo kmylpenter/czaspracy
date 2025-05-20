@@ -276,6 +276,11 @@ async function showRecentEntries() {
 
 function showToast(msg, isError = false) {
   const toast = document.getElementById('toast');
+  if (!toast) {
+    console.warn("Toast element nie istnieje:", msg);
+    return;
+  }
+
   toast.textContent = msg;
   toast.classList.toggle('error', isError);
   toast.style.display = 'block';
@@ -283,6 +288,7 @@ function showToast(msg, isError = false) {
     toast.style.display = 'none';
   }, 5000);
 }
+
 
 function updateClock() {
   const now = new Date();
@@ -442,17 +448,26 @@ console.log("Rendertiles", { containerId, items, statusMap });
     }
 
     async function resetForm() {
-      state = { worker: null, entries: [] };
-      loadProjectsFromStorage();
-      fetchWorkerStatuses().then(statusMap => {
-  showStep(1); // ← Przeniesione tutaj, po załadowaniu statusów
+  state = { worker: null, entries: [] };
+  loadProjectsFromStorage();
+
+  // Jeśli GAPI jeszcze się nie załadowało, poczekaj chwilę
+  if (!gapiInited) {
+    console.warn("Google API niegotowe, spróbuję ponownie za 250ms...");
+    setTimeout(resetForm, 250);
+    return;
+  }
+
+  const statusMap = await fetchWorkerStatuses();
+  showStep(1);
   renderTiles('workers', workers, worker => {
     state.worker = worker;
     showStep(2);
     renderTiles('projects', projects, selectProject);
     addCustomProjectTile();
   }, statusMap);
-});
+}
+
 
 
     }
