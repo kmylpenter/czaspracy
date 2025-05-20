@@ -365,17 +365,30 @@
 
     // ————— ZAPIS DO SHEETS —————
     function submitData() {
-      if (!gapiInited || !gisInited) {
-        alert("Trwa inicjalizacja Google API, spróbuj za chwilę.");
-        return;
-      }
-      const tok = gapi.client.getToken();
-      if (!tok) {
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-      } else {
-        actuallySubmitData();
-      }
-    }
+  const values = state.entries.map(e => [
+    new Date().toLocaleString(),
+    state.worker,
+    e.project,
+    e.category,
+    e.subcategory,
+    e.hours
+  ]);
+  
+  fetch('https://script.google.com/macros/s/AKfycbwCHwYtShT7ypr3INzlzIrRm2WHrd1T0tDXeRXU06MRJmq0fL_QVYtGG-jrAIdqUHvSqA/exec', {
+      method: 'POST',
+      body: JSON.stringify({ values }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.text())
+    .then(msg => {
+      alert("Dane zostały zapisane!");
+      resetForm();
+    })
+    .catch(err => {
+      console.error("Błąd zapisu:", err);
+      alert("Nie udało się zapisać danych.");
+    });
+}
 
     async function actuallySubmitData() {
       try {
