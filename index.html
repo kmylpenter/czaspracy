@@ -4,10 +4,9 @@
   <meta charset="UTF-8">
   <title>Rejestracja czasu pracy</title>
 
-  <!-- Google API klient -->
-  <script src="https://apis.google.com/js/api.js" defer onload="gapiLoaded()"></script>
-  <!-- Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" defer onload="gisLoaded()"></script>
+ <script src="https://apis.google.com/js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
+
 
   <style>
     body {
@@ -485,10 +484,6 @@ console.log("Rendertiles", { containerId, items, statusMap });
   }, statusMap);
 }
 
-
-
-    }
-
     // ————— DYNAMICZNE TILES —————
     function addCustomProject() {
       const customName = prompt("Podaj nazwę projektu:");
@@ -666,7 +661,10 @@ function formatDateForSheets(date) {
     // wymuszone otwarcie
     eruda.show();
   });
+gapiLoaded();
+gisLoaded();
 </script>
+
 
 </body>
 </html>
