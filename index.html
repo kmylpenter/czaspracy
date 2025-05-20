@@ -492,9 +492,9 @@ function showToast(msg, isError = false) {
     async function actuallySubmitData() {
       try {
         const values = state.entries.map(e => [
-          new Date().toLocaleString(),
-          state.worker, e.project, e.category, e.subcategory, e.hours
-        ]);
+        formatDateForSheets(new Date()),
+        state.worker, e.project, e.category, e.subcategory, e.hours
+      ]);
         await gapi.client.sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
           range: `${SHEET_NAME_SAVE}!A1`,
@@ -528,6 +528,12 @@ showToast("Dane zostały zapisane!");
         alert("Nie udało się pobrać projektów.");
       }
     }
+
+function formatDateForSheets(date) {
+  const pad = n => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 
     // ————— START —————
     resetForm();
