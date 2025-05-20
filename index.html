@@ -441,8 +441,8 @@ async function fetchWorkerStatuses() {
     async function resetForm() {
       state = { worker: null, entries: [] };
       loadProjectsFromStorage();
-      showStep(1);
       fetchWorkerStatuses().then(statusMap => {
+  showStep(1); // ← Przeniesione tutaj, po załadowaniu statusów
   renderTiles('workers', workers, worker => {
     state.worker = worker;
     showStep(2);
@@ -450,6 +450,7 @@ async function fetchWorkerStatuses() {
     addCustomProjectTile();
   }, statusMap);
 });
+
 
     }
 
