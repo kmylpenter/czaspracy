@@ -202,10 +202,9 @@
 <div id="toast"></div>
 
   <div class="nav-bar" id="backButtonContainer">
-    <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
-    <button class="back-button" style="float:right;" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
-
-  </div>
+  <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
+  <button class="back-button" style="float:right;" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
+</div>
 
   <h2 id="step-title">Jak masz na imię?</h2>
 
@@ -378,7 +377,7 @@ updateClock();
       document.getElementById(`step${step}`).classList.add('active');
       const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
       document.getElementById('step-title').innerText = titles[step-1];
-      document.getElementById('backButtonContainer').style.display = (step===1?'none':'block');
+      document.querySelector('.back-button').style.display = (step === 1 ? 'none' : 'inline-block');
       currentStep = step;
       if (step === 4) renderHourTiles();
     }
