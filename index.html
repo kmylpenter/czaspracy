@@ -425,20 +425,13 @@ async function saveNewItemToSheet(value, sheetName) {
       resource: { values: [[value]] }
     });
 
-    // ⏱️ natychmiast dodaj do lokalnej listy, bez reloadu
-    if (sheetName === 'Projekty') {
-      projects.push(value);
-      localStorage.setItem('projekty', JSON.stringify(projects));
-      renderTiles('projects', projects, selectProject);
-      addCustomProjectTile();
-    }
-
     showToast("Zapisano nową pozycję");
   } catch (err) {
     console.error("Błąd zapisu nowej pozycji:", err);
     showToast("Błąd zapisu nowej pozycji", true);
   }
 }
+
 
 
 
