@@ -203,6 +203,7 @@
 
   <div class="nav-bar" id="backButtonContainer">
   <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
+  <button id="addBtn" class="back-button" style="margin-left: 10px;" onclick="handleAddCustom()">➕ Dodaj</button>
   <button class="back-button" style="float:right;" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
 </div>
 
@@ -361,7 +362,7 @@ updateClock();
     const workers = ["Kamil","Paweł","Piotr","Przemek","Robert"];
     const categories = ["Stal","Drewno","Montaż","Biuro"];
     const subcategoriesMap = {
-      "Stal": ["Spawanie","Cięcie","Szlifowanie","Malowanie proszkowe"],
+      "Stal": ["Konstrukcja","Cięcie","Szlifowanie","Malowanie proszkowe"],
       "Drewno": ["Szlifowanie","Lakierowanie","Docinanie","Klejenie"],
       "Montaż": ["Transport","Instalacja","Dostosowanie","Pomiar na miejscu"],
       "Biuro": ["Mailing","Faktury","Telefon","Projektowanie"]
@@ -377,10 +378,57 @@ updateClock();
       document.getElementById(`step${step}`).classList.add('active');
       const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
       document.getElementById('step-title').innerText = titles[step-1];
+      document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
       document.querySelector('.back-button').style.display = (step === 1 ? 'none' : 'inline-block');
       currentStep = step;
       if (step === 4) renderHourTiles();
     }
+
+function handleAddCustom() {
+  if (currentStep === 2) {
+    const name = prompt("Podaj nazwę nowego projektu:");
+    if (name && !projects.includes(name)) {
+      projects.push(name);
+      renderTiles('projects', projects, selectProject);
+      addCustomProjectTile();
+      saveNewItemToSheet(name, 'Projekty'); // zapisujemy do głównego arkusza
+    }
+  }
+
+  if (currentStep === 4 && currentEntry?.category) {
+    const name = prompt("Podaj nazwę nowego zadania:");
+    const list = subcategoriesMap[currentEntry.category] || [];
+    if (name && !list.includes(name)) {
+      list.push(name);
+      subcategoriesMap[currentEntry.category] = list;
+      renderTiles('subcategories', list, subcat => {
+        currentEntry.subcategory = subcat;
+        document.getElementById('hourSection').style.display = 'block';
+      });
+      saveNewItemToSheet(name, 'NoweZadania'); // zadania zostają w osobnym arkuszu
+    }
+  }
+}
+
+
+async function saveNewItemToSheet(value, sheetName) {
+  if (!value || !sheetName || !gapiInited) return;
+
+  try {
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: { values: [[value]] }
+    });
+    showToast("Zapisano nową pozycję");
+  } catch (err) {
+    console.error("Błąd zapisu nowej pozycji:", err);
+    showToast("Błąd zapisu nowej pozycji", true);
+  }
+}
+
 
     function goBack() {
       if (currentStep > 1) showStep(currentStep - 1);
