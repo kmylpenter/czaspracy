@@ -393,7 +393,7 @@ function handleAddCustom() {
       localStorage.setItem('projekty', JSON.stringify(projects));
       renderTiles('projects', projects, selectProject);
       addCustomProjectTile();
-
+      
       // Zapisz do arkusza – UWAGA: arkusz to "Projekty"
       saveNewItemToSheet(name, 'Projekty');
     }
@@ -413,7 +413,6 @@ function handleAddCustom() {
     }
   }
 }
-
 
 
 async function saveNewItemToSheet(value, sheetName) {
