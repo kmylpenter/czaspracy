@@ -386,16 +386,16 @@ updateClock();
 
 function handleAddCustom() {
   if (currentStep === 2) {
-    const name = prompt("Podaj nazwę nowego projektu:");
-    if (name && !projects.includes(name)) {
-      projects.push(name);
-      localStorage.setItem('projekty', JSON.stringify(projects)); // <-- DODANE
-      renderTiles('projects', projects, selectProject);
-      addCustomProjectTile();
-      saveNewItemToSheet(name, 'Projekty');
-
-    }
+  const name = prompt("Podaj nazwę nowego projektu:");
+  if (name && !projects.includes(name)) {
+    projects.push(name);
+    saveNewItemToSheet(name, 'Projekty');
+    localStorage.setItem('projekty', JSON.stringify(projects));
+    renderTiles('projects', projects, selectProject);
+    addCustomProjectTile();
   }
+}
+
 
   if (currentStep === 4 && currentEntry?.category) {
     const name = prompt("Podaj nazwę nowego zadania:");
@@ -407,7 +407,7 @@ function handleAddCustom() {
         currentEntry.subcategory = subcat;
         document.getElementById('hourSection').style.display = 'block';
       });
-      saveNewItemToSheet(name, 'NoweZadania'); // zadania zostają w osobnym arkuszu
+      (name, 'NoweZadania'); // zadania zostają w osobnym arkuszu
     }
   }
 }
@@ -424,12 +424,22 @@ async function saveNewItemToSheet(value, sheetName) {
       insertDataOption: 'INSERT_ROWS',
       resource: { values: [[value]] }
     });
+
+    // ⏱️ natychmiast dodaj do lokalnej listy, bez reloadu
+    if (sheetName === 'Projekty') {
+      projects.push(value);
+      localStorage.setItem('projekty', JSON.stringify(projects));
+      renderTiles('projects', projects, selectProject);
+      addCustomProjectTile();
+    }
+
     showToast("Zapisano nową pozycję");
   } catch (err) {
     console.error("Błąd zapisu nowej pozycji:", err);
     showToast("Błąd zapisu nowej pozycji", true);
   }
 }
+
 
 
     function goBack() {
