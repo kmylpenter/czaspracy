@@ -435,13 +435,23 @@ async function saveNewItemToSheet(value, sheetName) {
     }
 
 async function fetchWorkerStatuses() {
-  const statusMap = {}; // { "Kamil": "green" / "yellow" / "red" }
+  const statusMap = {};
+  const todayStr = new Date().toISOString().split("T")[0];
 
-  if (typeof gapi === 'undefined' || !gapi.client) {
-    console.warn("Google API jeszcze niegotowe");
-    return statusMap;
+  // Spróbuj wczytać z cache
+  const cached = localStorage.getItem("workerStatusCache");
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (parsed.date === todayStr && parsed.statusMap) {
+        return parsed.statusMap; // 🎉 szybki powrót
+      }
+    } catch (e) {
+      console.warn("Błąd parsowania cache:", e);
+    }
   }
 
+  // Jeśli brak cache lub nieaktualne — pobierz z arkusza
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -449,15 +459,9 @@ async function fetchWorkerStatuses() {
     });
 
     const entries = res.result.values || [];
-
-    const today = new Date();
     const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-
-    const formatDate = (d) => d.toISOString().split('T')[0];
-
-    const todayStr = formatDate(today);
-    const yesterdayStr = formatDate(yesterday);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
 
     workers.forEach(worker => {
       const hasToday = entries.some(row =>
@@ -467,14 +471,17 @@ async function fetchWorkerStatuses() {
         row[0]?.startsWith(yesterdayStr) && row[1] === worker
       );
 
-      if (hasToday) {
-        statusMap[worker] = 'green';
-      } else if (hasYesterday) {
-        statusMap[worker] = 'yellow';
-      } else {
-        statusMap[worker] = 'red';
-      }
+      if (hasToday) statusMap[worker] = "green";
+      else if (hasYesterday) statusMap[worker] = "yellow";
+      else statusMap[worker] = "red";
     });
+
+    // Zapisz do cache
+    localStorage.setItem("workerStatusCache", JSON.stringify({
+      date: todayStr,
+      statusMap
+    }));
+
   } catch (e) {
     console.error("Błąd pobierania statusów pracowników:", e);
     showToast("Nie udało się sprawdzić, kto się wpisał.", true);
@@ -482,6 +489,7 @@ async function fetchWorkerStatuses() {
 
   return statusMap;
 }
+
 
 
 
