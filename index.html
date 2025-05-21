@@ -384,6 +384,7 @@ updateClock();
       if (step === 4) renderHourTiles();
     }
 
+// ————— Zaktualizowany handleAddCustom —————
 function handleAddCustom() {
   if (currentStep === 2) {
     const name = prompt("Podaj nazwę nowego projektu:");
@@ -392,7 +393,6 @@ function handleAddCustom() {
       localStorage.setItem('projekty', JSON.stringify(projects));
       renderTiles('projects', projects, selectProject);
       addCustomProjectTile();
-      // zapisujemy do arkusza NoweProjekty
       saveNewItemToSheet(name, 'NoweProjekty');
     }
   }
@@ -407,11 +407,12 @@ function handleAddCustom() {
         currentEntry.subcategory = subcat;
         document.getElementById('hourSection').style.display = 'block';
       });
-      // tutaj zostaje bez zmian: nowe zadania idą do arkusza NoweZadania
-      saveNewItemToSheet(name, 'NoweZadania');
+      // zamiast tylko nazwy – zapisujemy też kategorię
+      saveNewTaskToSheet(currentEntry.category, name);
     }
   }
 }
+
 
 
 
@@ -582,18 +583,45 @@ console.log("Rendertiles", { containerId, items, statusMap });
       document.getElementById('projects').appendChild(t);
     }
 
-    function selectProject(project) {
-      currentEntry = { project, category:null, subcategory:null, hours:0 };
-      showStep(3);
-      renderTiles('categories', categories, cat => {
-        currentEntry.category = cat;
-        showStep(4);
-        renderTiles('subcategories', subcategoriesMap[cat], subcat => {
-  currentEntry.subcategory = subcat;
-  document.getElementById('hourSection').style.display = 'block';
-});
-      });
-    }
+// ————— NOWA funkcja do zapisu nowych zadań w dwóch kolumnach (kategoria + nazwa) —————
+async function saveNewTaskToSheet(category, taskName) {
+  if (!category || !taskName || !gapiInited) return;
+  try {
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `NoweZadania!A:B`,                // kolumna A = kategoria, B = zadanie
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: { values: [[ category, taskName ]] }
+    });
+    showToast("Zapisano nowe zadanie");
+  } catch (err) {
+    console.error("Błąd zapisu nowego zadania:", err);
+    showToast("Błąd zapisu nowego zadania", true);
+  }
+}
+
+
+    // ————— Modyfikacja selectProject → wybór kategorii → krok 4 —————
+function selectProject(project) {
+  currentEntry = { project, category: null, subcategory: null, hours: 0 };
+  showStep(3);
+  renderTiles('categories', categories, async cat => {
+    currentEntry.category = cat;
+    showStep(4);
+
+    // pobierz statyczne i nowe zadania
+    const staticList = subcategoriesMap[cat] || [];
+    const customList = await fetchSubcategoriesFromSheet(cat);
+    const combined  = Array.from(new Set([...staticList, ...customList]));
+
+    renderTiles('subcategories', combined, subcat => {
+      currentEntry.subcategory = subcat;
+      document.getElementById('hourSection').style.display = 'block';
+    });
+  });
+}
+
 
     function renderHourTiles() {
       const c = document.getElementById('hourTiles');
@@ -698,24 +726,54 @@ showToast("Dane zostały zapisane!");
       }
     }
 
-    // ————— POBIERANIE PROJEKTÓW —————
-    async function fetchProjectsFromSheet() {
-      try {
-        const res = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME_LOAD}!A2:A?key=${API_KEY}`
-        );
-        const data = await res.json();
-        if (!data.values) throw new Error("Brak danych");
-        projects = data.values.flat().filter(Boolean);
-        localStorage.setItem('projekty', JSON.stringify(projects));
-        renderTiles('projects', projects, selectProject);
-        addCustomProjectTile();
-        showToast("Zaktualizowano projekty z bazy.");
-      } catch (e) {
-        console.error(e);
-        alert("Nie udało się pobrać projektów.");
-      }
-    }
+
+    // ————— ZAMIENNIK fetchProjectsFromSheet —————
+async function fetchProjectsFromSheet() {
+  try {
+    // pobierz równolegle oba zakresy
+    const [resBase, resCustom] = await Promise.all([
+      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME_LOAD}!A2:A?key=${API_KEY}`),
+      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/NoweProjekty!A2:A?key=${API_KEY}`)
+    ]);
+    const dataBase   = await resBase.json();
+    const dataCustom = await resCustom.json();
+
+    const baseList   = dataBase.values   ? dataBase.values.flat()   : [];
+    const customList = dataCustom.values ? dataCustom.values.flat() : [];
+
+    // usuń duplikaty i puste
+    projects = Array.from(new Set([...baseList, ...customList].filter(Boolean)));
+
+    // zapamiętaj w localStorage i przerysuj
+    localStorage.setItem('projekty', JSON.stringify(projects));
+    renderTiles('projects', projects, selectProject);
+    addCustomProjectTile();
+    showToast("Zaktualizowano projekty (Podstawowe + Nowe).");
+  } catch (e) {
+    console.error("Błąd pobierania projektów:", e);
+    alert("Nie udało się pobrać projektów.");
+  }
+}
+
+// ————— NOWA funkcja pobierająca zadania z arkusza NoweZadania —————
+async function fetchSubcategoriesFromSheet(category) {
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/NoweZadania!A2:B?key=${API_KEY}`
+    );
+    const data = await res.json();
+    if (!data.values) return [];
+
+    // oczekujemy, że w kolumnie A jest kategoria, w kolumnie B nazwa zadania
+    return data.values
+      .filter(row => row[0] === category && row[1])
+      .map(row => row[1]);
+  } catch (e) {
+    console.error("Błąd pobierania nowych zadań:", e);
+    return [];
+  }
+}
+
 
 function formatDateForSheets(date) {
   const pad = n => n.toString().padStart(2, '0');
