@@ -389,9 +389,11 @@ function handleAddCustom() {
     const name = prompt("Podaj nazwę nowego projektu:");
     if (name && !projects.includes(name)) {
       projects.push(name);
+      localStorage.setItem('projekty', JSON.stringify(projects)); // <-- DODANE
       renderTiles('projects', projects, selectProject);
       addCustomProjectTile();
-      saveNewItemToSheet(name, 'Projekty'); // zapisujemy do głównego arkusza
+      saveNewItemToSheet(name, 'Projekty');
+
     }
   }
 
@@ -716,7 +718,7 @@ function formatDateForSheets(date) {
     // ————— START ————
   </script>
 <!-- Eruda: konsola na urządzeniach mobilnych -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+// <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     eruda.init({
