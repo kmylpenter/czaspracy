@@ -242,7 +242,7 @@ async function showRecentEntries() {
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: ${SHEET_NAME_SAVE}!A2:F,
+      range: `${SHEET_NAME_SAVE}!A2:F`,
     });
 
     const allEntries = res.result.values || [];
@@ -251,7 +251,7 @@ async function showRecentEntries() {
       return !isNaN(d) && d >= oneWeekAgo;
     });
 
-    const html = 
+    const html = `
       <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
                   background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
                   max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
@@ -268,18 +268,18 @@ async function showRecentEntries() {
             </tr>
           </thead>
           <tbody>
-            ${recent.map(row => 
+            ${recent.map(row => `
               <tr>
-                ${row.map(col => <td style="border:1px solid #eee; padding:4px;">${col}</td>).join('')}
+                ${row.map(col => `<td style="border:1px solid #eee; padding:4px;">${col}</td>`).join('')}
               </tr>
-            ).join('')}
+            `).join('')}
           </tbody>
         </table>
         <div style="text-align:center; margin-top:10px;">
           <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
         </div>
       </div>
-    ;
+    `;
 
     const container = document.createElement('div');
     container.innerHTML = html;
@@ -311,7 +311,7 @@ function updateClock() {
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   const dateStr = now.toLocaleDateString('pl-PL', options);
   const timeStr = now.toLocaleTimeString('pl-PL');
-  document.getElementById('clock').innerText = ${dateStr}, ${timeStr};
+  document.getElementById('clock').innerText = `${dateStr}, ${timeStr}`;
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -375,7 +375,7 @@ updateClock();
     // ————— POMOCNICZE —————
     function showStep(step) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      document.getElementById(step${step}).classList.add('active');
+      document.getElementById(`step${step}`).classList.add('active');
       const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
       document.getElementById('step-title').innerText = titles[step-1];
       document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
@@ -389,6 +389,7 @@ function handleAddCustom() {
     const name = prompt("Podaj nazwę nowego projektu:");
     if (name && !projects.includes(name)) {
       projects.push(name);
+      localStorage.setItem('projekty', JSON.stringify(projects)); // <-- DODANE
       renderTiles('projects', projects, selectProject);
       addCustomProjectTile();
       saveNewItemToSheet(name, 'Projekty');
@@ -418,7 +419,7 @@ async function saveNewItemToSheet(value, sheetName) {
   try {
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: ${sheetName}!A:A,
+      range: `${sheetName}!A:A`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       resource: { values: [[value]] }
@@ -456,7 +457,7 @@ async function fetchWorkerStatuses() {
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: ${SHEET_NAME_SAVE}!A2:F,
+      range: `${SHEET_NAME_SAVE}!A2:F`,
     });
 
     const entries = res.result.values || [];
@@ -510,11 +511,11 @@ console.log("Rendertiles", { containerId, items, statusMap });
 
   items.forEach(item => {
     const div = document.createElement('div');
-    div.className = tile ${stepClass};
+    div.className = `tile ${stepClass}`;
 
     // Dodaj klasę statusu (jeśli dotyczy)
     if (statusMap[item]) {
-      div.classList.add(tile-status-${statusMap[item]});
+      div.classList.add(`tile-status-${statusMap[item]}`);
     }
 
     div.innerText = item;
@@ -614,7 +615,7 @@ console.log("Rendertiles", { containerId, items, statusMap });
       let total = 0;
       summary.innerHTML = '';
       const header = document.createElement('p');
-      header.innerHTML = <strong>Pracownik:</strong> ${state.worker};
+      header.innerHTML = `<strong>Pracownik:</strong> ${state.worker}`;
       summary.appendChild(header);
       const container = document.createElement('div');
       container.className = 'summary-entry-container';
@@ -622,22 +623,22 @@ console.log("Rendertiles", { containerId, items, statusMap });
         total += e.hours;
         const div = document.createElement('div');
         div.className = 'summary-entry';
-        div.innerHTML = 
+        div.innerHTML = `
           <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
           <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
           <div class="hour-options">
             ${Array.from({length:16},(_,h)=>{
               const hv = h+1;
-              return <div class="tile ${e.hours===hv?'selected':''}" onclick="updateHours(${i},${hv})">${hv}</div>;
+              return `<div class="tile ${e.hours===hv?'selected':''}" onclick="updateHours(${i},${hv})">${hv}</div>`;
             }).join('')}
           </div>
-        ;
+        `;
         container.appendChild(div);
       });
       summary.appendChild(container);
       const totalSpan = document.getElementById('totalHours');
       totalSpan.innerText = total;
-      totalSpan.className = total-hours ${total>9?'red':'green'};
+      totalSpan.className = `total-hours ${total>9?'red':'green'}`;
     }
 
     function removeEntry(idx) {
@@ -676,7 +677,7 @@ console.log("Rendertiles", { containerId, items, statusMap });
       ]);
         await gapi.client.sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
-          range: ${SHEET_NAME_SAVE}!A1,
+          range: `${SHEET_NAME_SAVE}!A1`,
           valueInputOption: 'USER_ENTERED',
           insertDataOption: 'INSERT_ROWS',
           resource: { values }
@@ -693,7 +694,7 @@ showToast("Dane zostały zapisane!");
     async function fetchProjectsFromSheet() {
       try {
         const res = await fetch(
-          https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME_LOAD}!A2:A?key=${API_KEY}
+          `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME_LOAD}!A2:A?key=${API_KEY}`
         );
         const data = await res.json();
         if (!data.values) throw new Error("Brak danych");
@@ -710,7 +711,7 @@ showToast("Dane zostały zapisane!");
 
 function formatDateForSheets(date) {
   const pad = n => n.toString().padStart(2, '0');
-  return ${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())};
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 
