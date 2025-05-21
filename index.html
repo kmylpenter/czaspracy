@@ -392,10 +392,10 @@ function handleAddCustom() {
       localStorage.setItem('projekty', JSON.stringify(projects));
       renderTiles('projects', projects, selectProject);
       addCustomProjectTile();
-            saveNewItemToSheet(name, 'NoweProjekty');
+      // zapisujemy do arkusza NoweProjekty
+      saveNewItemToSheet(name, 'NoweProjekty');
     }
   }
-
 
   if (currentStep === 4 && currentEntry?.category) {
     const name = prompt("Podaj nazwę nowego zadania:");
@@ -407,10 +407,12 @@ function handleAddCustom() {
         currentEntry.subcategory = subcat;
         document.getElementById('hourSection').style.display = 'block';
       });
-      saveNewItemToSheet(name, 'NoweZadania'); // zadania zostają w osobnym arkuszu
+      // tutaj zostaje bez zmian: nowe zadania idą do arkusza NoweZadania
+      saveNewItemToSheet(name, 'NoweZadania');
     }
   }
 }
+
 
 
 async function saveNewItemToSheet(value, sheetName) {
@@ -560,19 +562,17 @@ console.log("Rendertiles", { containerId, items, statusMap });
 
     // ————— DYNAMICZNE TILES —————
     function addCustomProject() {
- const customName = prompt("Podaj nazwę projektu:");
-if (customName) {
- projects.push(customName);
-  selectProject(customName);
- const name = prompt("Podaj nazwę nowego projektu:");
- if (name && !projects.includes(name)) {
-  projects.push(name);
-   localStorage.setItem('projekty', JSON.stringify(projects));
-   renderTiles('projects', projects, selectProject);
-   addCustomProjectTile();
-  saveNewItemToSheet(name, 'NoweProjekty');
+  const name = prompt("Podaj nazwę nowego projektu:");
+  if (name && !projects.includes(name)) {
+    projects.push(name);
+    localStorage.setItem('projekty', JSON.stringify(projects));
+    renderTiles('projects', projects, selectProject);
+    addCustomProjectTile();
+    // zapisujemy do arkusza NoweProjekty
+    saveNewItemToSheet(name, 'NoweProjekty');
   }
 }
+
 
     function addCustomProjectTile() {
       const t = document.createElement('div');
