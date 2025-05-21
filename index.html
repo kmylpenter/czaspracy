@@ -388,14 +388,11 @@ function handleAddCustom() {
   if (currentStep === 2) {
     const name = prompt("Podaj nazwę nowego projektu:");
     if (name && !projects.includes(name)) {
-      // Dodaj lokalnie
       projects.push(name);
       localStorage.setItem('projekty', JSON.stringify(projects));
       renderTiles('projects', projects, selectProject);
       addCustomProjectTile();
-      
-      // Zapisz do arkusza – UWAGA: arkusz to "Projekty"
-      saveNewItemToSheet(name, 'Projekty');
+      saveNewItemToSheet(name, 'Projekty');  // ← właśnie to!
     }
   }
 
@@ -413,6 +410,7 @@ function handleAddCustom() {
     }
   }
 }
+
 
 
 async function saveNewItemToSheet(value, sheetName) {
