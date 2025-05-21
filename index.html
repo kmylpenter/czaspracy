@@ -557,25 +557,11 @@ console.log("Rendertiles", { containerId, items, statusMap });
     state.worker = worker;
     showStep(2);
     renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
   }, statusMap);
 }
 
     // ————— DYNAMICZNE TILES —————
-    function addCustomProject() {
-      const customName = prompt("Podaj nazwę projektu:");
-      if (customName) {
-        projects.push(customName);
-        selectProject(customName);
-      }
-    }
-    function addCustomProjectTile() {
-      const t = document.createElement('div');
-      t.className = 'tile';
-      t.innerText = '+ Dodaj projekt';
-      t.onclick = addCustomProject;
-      document.getElementById('projects').appendChild(t);
-    }
+   
 
     function selectProject(project) {
       currentEntry = { project, category:null, subcategory:null, hours:0 };
