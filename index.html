@@ -386,16 +386,18 @@ updateClock();
 
 function handleAddCustom() {
   if (currentStep === 2) {
-  const name = prompt("Podaj nazwę nowego projektu:");
-  if (name && !projects.includes(name)) {
-    projects.push(name);
-    saveNewItemToSheet(name, 'Projekty');
-    localStorage.setItem('projekty', JSON.stringify(projects));
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
-  }
-}
+    const name = prompt("Podaj nazwę nowego projektu:");
+    if (name && !projects.includes(name)) {
+      // Dodaj lokalnie
+      projects.push(name);
+      localStorage.setItem('projekty', JSON.stringify(projects));
+      renderTiles('projects', projects, selectProject);
+      addCustomProjectTile();
 
+      // Zapisz do arkusza – UWAGA: arkusz to "Projekty"
+      saveNewItemToSheet(name, 'Projekty');
+    }
+  }
 
   if (currentStep === 4 && currentEntry?.category) {
     const name = prompt("Podaj nazwę nowego zadania:");
@@ -407,10 +409,11 @@ function handleAddCustom() {
         currentEntry.subcategory = subcat;
         document.getElementById('hourSection').style.display = 'block';
       });
-      (name, 'NoweZadania'); // zadania zostają w osobnym arkuszu
+      saveNewItemToSheet(name, 'NoweZadania');
     }
   }
 }
+
 
 
 async function saveNewItemToSheet(value, sheetName) {
@@ -419,7 +422,7 @@ async function saveNewItemToSheet(value, sheetName) {
   try {
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A:A`,
+      range: `${sheetName}!A2:A`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       resource: { values: [[value]] }
