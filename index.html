@@ -640,11 +640,11 @@ async function resetForm() {
   renderTiles('workers', workers, worker => {
     state.worker = worker;
     showStep(2);
--   renderTiles('projects', projects, selectProject);
-+   // pobierz od razu projekty z obu arkuszy
-+   fetchProjectsFromSheet().then(() => {
-+     renderTiles('projects', projects, selectProject);
-+   });
+renderTiles('projects', projects, selectProject);
+// pobierz od razu projekty z obu arkuszy
+ fetchProjectsFromSheet().then(() => {
+ renderTiles('projects', projects, selectProject);
+});
     addCustomProjectTile();
   }, statusMap);
 }
