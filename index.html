@@ -626,7 +626,7 @@ console.log("Rendertiles", { containerId, items, statusMap });
     // ————— ZAMIENNIK resetForm —————
 async function resetForm() {
   state = { worker: null, entries: [] };
-loadProjectsFromStorage();
+- loadProjectsFromStorage();
 
   // Jeśli GAPI jeszcze się nie załadowało, poczekaj chwilę
   if (!gapiInited) {
@@ -640,11 +640,11 @@ loadProjectsFromStorage();
   renderTiles('workers', workers, worker => {
     state.worker = worker;
     showStep(2);
-renderTiles('projects', projects, selectProject);
-// pobierz od razu projekty z obu arkuszy
- fetchProjectsFromSheet().then(() => {
- renderTiles('projects', projects, selectProject);
-});
+-   renderTiles('projects', projects, selectProject);
++   // pobierz od razu projekty z obu arkuszy
++   fetchProjectsFromSheet().then(() => {
++     renderTiles('projects', projects, selectProject);
++   });
     addCustomProjectTile();
   }, statusMap);
 }
