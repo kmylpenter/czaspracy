@@ -623,16 +623,10 @@ console.log("Rendertiles", { containerId, items, statusMap });
   });
 }
 
-
-    // ————— RESET I START —————
-    function loadProjectsFromStorage() {
-      const stored = localStorage.getItem('projekty');
-      projects = stored ? JSON.parse(stored) : [];
-    }
-
-    async function resetForm() {
+    // ————— ZAMIENNIK resetForm —————
+async function resetForm() {
   state = { worker: null, entries: [] };
-  loadProjectsFromStorage();
+- loadProjectsFromStorage();
 
   // Jeśli GAPI jeszcze się nie załadowało, poczekaj chwilę
   if (!gapiInited) {
@@ -646,10 +640,16 @@ console.log("Rendertiles", { containerId, items, statusMap });
   renderTiles('workers', workers, worker => {
     state.worker = worker;
     showStep(2);
-    renderTiles('projects', projects, selectProject);
+-   renderTiles('projects', projects, selectProject);
++   // pobierz od razu projekty z obu arkuszy
++   fetchProjectsFromSheet().then(() => {
++     renderTiles('projects', projects, selectProject);
++   });
     addCustomProjectTile();
   }, statusMap);
 }
+
+
 
     // ————— DYNAMICZNE TILES —————
     function addCustomProject() {
@@ -820,30 +820,27 @@ showToast("Dane zostały zapisane!");
     // ————— ZAMIENNIK fetchProjectsFromSheet —————
 async function fetchProjectsFromSheet() {
   try {
-    // pobierz równolegle oba zakresy
-    const [resBase, resCustom] = await Promise.all([
+    const [baseRes, customRes] = await Promise.all([
       fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME_LOAD}!A2:A?key=${API_KEY}`),
       fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/NoweProjekty!A2:A?key=${API_KEY}`)
     ]);
-    const dataBase   = await resBase.json();
-    const dataCustom = await resCustom.json();
 
-    const baseList   = dataBase.values   ? dataBase.values.flat()   : [];
-    const customList = dataCustom.values ? dataCustom.values.flat() : [];
+    const baseList   = (await baseRes.json()).values?.flat()   || [];
+    const customList = (await customRes.json()).values?.flat() || [];
 
-    // usuń duplikaty i puste
+    // scal i odfiltruj puste + duplikaty
     projects = Array.from(new Set([...baseList, ...customList].filter(Boolean)));
 
-    // zapamiętaj w localStorage i przerysuj
+    // zaktualizuj localStorage dla szybkości (opcjonalne)
     localStorage.setItem('projekty', JSON.stringify(projects));
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
-    showToast("Zaktualizowano projekty (Podstawowe + Nowe).");
+    showToast("Projekty załadowane z obu arkuszy");
+
   } catch (e) {
-    console.error("Błąd pobierania projektów:", e);
-    alert("Nie udało się pobrać projektów.");
+    console.error("Błąd fetchProjectsFromSheet:", e);
+    showToast("Nie udało się pobrać projektów", true);
   }
 }
+
 
 // ————— NOWA funkcja pobierająca zadania z arkusza NoweZadania —————
 async function fetchSubcategoriesFromSheet(category) {
