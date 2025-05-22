@@ -235,21 +235,32 @@
   </div>
 
   <script>
+// ————— ZAMIENNIK showRecentEntries —————
 async function showRecentEntries() {
   try {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // 1) pobieramy wszystkie wiersze
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME_SAVE}!A2:F`,
     });
-
     const allEntries = res.result.values || [];
-    const recent = allEntries.filter(row => {
-      const d = new Date(row[0]);
+
+    // 2) mapujemy na obiekty z numerem wiersza w arkuszu (pierwszy wiersz to A2 → rowIndex=2)
+    const enriched = allEntries.map((row, i) => ({
+      data: row,
+      rowIndex: i + 2
+    }));
+
+    // 3) filtrujemy tylko ostatni tydzień
+    const recent = enriched.filter(obj => {
+      const d = new Date(obj.data[0]);
       return !isNaN(d) && d >= oneWeekAgo;
     });
 
+    // 4) budujemy tabelę z dodatkową kolumną „Edytuj”
     const html = `
       <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
                   background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
@@ -264,12 +275,16 @@ async function showRecentEntries() {
               <th style="border-bottom:1px solid #ccc;">Kategoria</th>
               <th style="border-bottom:1px solid #ccc;">Zadanie</th>
               <th style="border-bottom:1px solid #ccc;">Godziny</th>
+              <th style="border-bottom:1px solid #ccc;">Edytuj</th>
             </tr>
           </thead>
           <tbody>
-            ${recent.map(row => `
+            ${recent.map(obj => `
               <tr>
-                ${row.map(col => `<td style="border:1px solid #eee; padding:4px;">${col}</td>`).join('')}
+                ${obj.data.map(col => `<td style="border:1px solid #eee; padding:4px;">${col}</td>`).join('')}
+                <td style="border:1px solid #eee; padding:4px; text-align:center;">
+                  <button onclick="editEntry(${obj.rowIndex})" style="cursor:pointer; background:none; border:none; font-size:1.1rem;">✏️</button>
+                </td>
               </tr>
             `).join('')}
           </tbody>
@@ -279,15 +294,55 @@ async function showRecentEntries() {
         </div>
       </div>
     `;
-
+    // wstrzyknięcie
     const container = document.createElement('div');
     container.innerHTML = html;
     document.body.appendChild(container);
+
   } catch (e) {
     console.error("Błąd pobierania wpisów:", e);
     showToast("Nie udało się pobrać wpisów", true);
   }
 }
+
+// ————— NOWA funkcja editEntry —————
+async function editEntry(rowIndex) {
+  try {
+    // pobierz istniejące wartości
+    const range = `${SHEET_NAME_SAVE}!A${rowIndex}:F${rowIndex}`;
+    const getRes = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range
+    });
+    const old = getRes.result.values?.[0] || [];
+
+    // nagłówki dla promptów
+    const headers = ['Data', 'Pracownik', 'Projekt', 'Kategoria', 'Zadanie', 'Godziny'];
+    // zapytaj o każdą kolumnę
+    const updated = old.map((val, i) => {
+      const inp = prompt(`Nowa wartość dla ${headers[i]}:`, val);
+      return inp == null ? val : inp;  // jeśli Cancel → zostawiamy oryginał
+    });
+
+    // wyślij update
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [updated] }
+    });
+    showToast("Zaktualizowano wpis");
+
+    // odśwież popup
+    document.getElementById('entries-popup').remove();
+    showRecentEntries();
+
+  } catch (err) {
+    console.error("Błąd edycji wpisu:", err);
+    showToast("Nie udało się zaktualizować wpisu", true);
+  }
+}
+
 
 function showToast(msg, isError = false) {
   const toast = document.getElementById('toast');
