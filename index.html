@@ -626,7 +626,7 @@ console.log("Rendertiles", { containerId, items, statusMap });
     // ————— ZAMIENNIK resetForm —————
 async function resetForm() {
   state = { worker: null, entries: [] };
-- loadProjectsFromStorage();
+loadProjectsFromStorage();
 
   // Jeśli GAPI jeszcze się nie załadowało, poczekaj chwilę
   if (!gapiInited) {
