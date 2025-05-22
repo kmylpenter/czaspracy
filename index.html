@@ -305,26 +305,24 @@ async function showRecentEntries() {
   }
 }
 
-// ————— NOWA funkcja editEntry —————
 async function editEntry(rowIndex) {
-  try {
-    // pobierz istniejące wartości
-    const range = `${SHEET_NAME_SAVE}!A${rowIndex}:F${rowIndex}`;
-    const getRes = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range
-    });
-    const old = getRes.result.values?.[0] || [];
+  // 1) Pobieramy starą wartość
+  const range = `${SHEET_NAME_SAVE}!A${rowIndex}:F${rowIndex}`;
+  const getRes = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range
+  });
+  const old = getRes.result.values?.[0] || [];
+  const headers = ['Data','Pracownik','Projekt','Kategoria','Zadanie','Godziny'];
 
-    // nagłówki dla promptów
-    const headers = ['Data', 'Pracownik', 'Projekt', 'Kategoria', 'Zadanie', 'Godziny'];
-    // zapytaj o każdą kolumnę
-    const updated = old.map((val, i) => {
-      const inp = prompt(`Nowa wartość dla ${headers[i]}:`, val);
-      return inp == null ? val : inp;  // jeśli Cancel → zostawiamy oryginał
-    });
+  // 2) Pytamy usera o nowe wartości
+  const updated = old.map((val,i) => {
+    const inp = prompt(`Nowa wartość dla ${headers[i]}:`, val);
+    return inp == null ? val : inp;
+  });
 
-    // wyślij update
+  // 3) Funkcja, która robi faktyczny update
+  async function doUpdate() {
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range,
@@ -332,16 +330,31 @@ async function editEntry(rowIndex) {
       resource: { values: [updated] }
     });
     showToast("Zaktualizowano wpis");
-
     // odśwież popup
     document.getElementById('entries-popup').remove();
     showRecentEntries();
+  }
 
-  } catch (err) {
-    console.error("Błąd edycji wpisu:", err);
-    showToast("Nie udało się zaktualizować wpisu", true);
+  // 4) Jeśli mamy już OAuth-owy token — idziemy od razu, inaczej prosimy o dostęp
+  const tok = gapi.client.getToken();
+  if (!tok) {
+    // nadpisujemy callback tokenClienta żeby po zalogowaniu wykonać właśnie doUpdate()
+    tokenClient.callback = async (resp) => {
+      if (resp.error) {
+        console.error("Token error:", resp);
+        showToast("Brak dostępu do zapisu", true);
+        return;
+      }
+      await doUpdate();
+    };
+    // prosimy o token
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  } else {
+    // mamy token, jedziemy od razu
+    await doUpdate();
   }
 }
+
 
 
 function showToast(msg, isError = false) {
