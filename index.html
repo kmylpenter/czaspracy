@@ -232,8 +232,16 @@
   <div class="screen" id="step3">
     <div class="grid" id="categories"></div>
   </div>
-  <div class="screen" id="step4">
+ <div class="screen" id="step4">
+  <!-- ➡️ tutaj przycisk odświeżania zadań -->
+  <div id="task-update-container" style="width:90%; max-width:800px; margin-bottom:10px; text-align:center;">
+    <button onclick="handleUpdateTasks()">🔄 Aktualizuj zadania</button>
+  </div>
+
+  <!-- lista kafelków z zadaniami -->
   <div class="grid tile-step4" id="subcategories"></div>
+
+  <!-- wybór godzin -->
   <div id="hourSection" style="display:none;">
     <h3>Wybierz liczbę godzin:</h3>
     <div class="hour-options" id="hourTiles"></div>
@@ -327,6 +335,97 @@ async function showRecentEntries() {
     showToast("Nie udało się pobrać wpisów", true);
   }
 }
+
+// Helpers: dostajesz i zapisujesz listę projektów w localStorage
+function getCachedProjects() {
+  try { return JSON.parse(localStorage.getItem('projekty')||'[]') }
+  catch { return [] }
+}
+function setCachedProjects(arr) {
+  localStorage.setItem('projekty', JSON.stringify(arr))
+}
+
+// fetch + cache + render
+async function fetchProjectsFromSheet() {
+  if (!gapiInited) return;
+  try {
+    const [base, custom] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME_LOAD}!A2:A`
+      }),
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `NoweProjekty!A2:A`
+      })
+    ]);
+    const baseList   = base.result.values?.flat()   || [];
+    const customList = custom.result.values?.flat() || [];
+    projects = Array.from(new Set([...baseList, ...customList].filter(Boolean)));
+    setCachedProjects(projects);
+    renderProjects(); 
+    showToast("Projekty zaktualizowane");
+  } catch (e) {
+    console.error(e);
+    showToast("Błąd aktualizacji projektów", true);
+  }
+}
+
+function getCachedTasks() {
+  try { return JSON.parse(localStorage.getItem('tasksCache')||'{}') }
+  catch { return {} }
+}
+function setCachedTasks(obj) {
+  localStorage.setItem('tasksCache', JSON.stringify(obj))
+}
+
+// pobierz WSZYSTKIE zadania raz z arkusza, pogrupuj po kategorii
+async function fetchTasksFromSheet() {
+  if (!gapiInited) return {};
+  try {
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `NoweZadania!A2:B`
+    });
+    const rows = res.result.values || [];
+    const tasksByCat = {};
+    rows.forEach(([cat, task]) => {
+      if (cat && task) {
+        tasksByCat[cat] = tasksByCat[cat]||[];
+        if (!tasksByCat[cat].includes(task)) tasksByCat[cat].push(task);
+      }
+    });
+    setCachedTasks(tasksByCat);
+    return tasksByCat;
+  } catch (e) {
+    console.error(e);
+    return getCachedTasks();
+  }
+}
+
+
+// renderowanie kafelków projektów
+function renderProjects() {
+  renderTiles('projects', projects, selectProject);
+  addCustomProjectTile();
+}
+
+// w resetForm: od razu z cache’u, bez fetcha
+async function resetForm() {
+  state = { worker: null, entries: [] };
+  // ładowanie z cache’u
+  loadProjectsFromStorage();
+  projects = getCachedProjects();
+  // reszta initu GAPI + statusMap…
+  const statusMap = await fetchWorkerStatuses();
+  showStep(1);
+  renderTiles('workers', workers, worker => {
+    state.worker = worker;
+    showStep(2);
+    renderProjects();
+  }, statusMap);
+}
+
 
 async function editEntry(rowIndex) {
   // 1) Pobieramy starą wartość
@@ -693,24 +792,39 @@ async function saveNewTaskToSheet(category, taskName) {
 
 
     // ————— Modyfikacja selectProject → wybór kategorii → krok 4 —————
+// po wyborze kategorii:
 function selectProject(project) {
   currentEntry = { project, category: null, subcategory: null, hours: 0 };
   showStep(3);
+  // …krok 3→4:
   renderTiles('categories', categories, async cat => {
     currentEntry.category = cat;
     showStep(4);
-
-    // pobierz statyczne i nowe zadania
-    const staticList = subcategoriesMap[cat] || [];
-    const customList = await fetchSubcategoriesFromSheet(cat);
-    const combined  = Array.from(new Set([...staticList, ...customList]));
-
-    renderTiles('subcategories', combined, subcat => {
+    // najpierw: statyczne + cache
+    const staticList = subcategoriesMap[cat]||[];
+    const cached = getCachedTasks()[cat]||[];
+    renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
       currentEntry.subcategory = subcat;
       document.getElementById('hourSection').style.display = 'block';
     });
   });
 }
+
+// obsługa przycisku
+async function handleUpdateTasks() {
+  if (!currentEntry?.category) return;
+  const tasksByCat = await fetchTasksFromSheet();
+  const list = Array.from(new Set([
+    ...(subcategoriesMap[currentEntry.category]||[]),
+    ...(tasksByCat[currentEntry.category]||[])
+  ]));
+  renderTiles('subcategories', list, subcat => {
+    currentEntry.subcategory = subcat;
+    document.getElementById('hourSection').style.display = 'block';
+  });
+  showToast("Zadania zaktualizowane");
+}
+
 
 
     function renderHourTiles() {
