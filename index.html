@@ -233,15 +233,14 @@
     <div class="grid" id="categories"></div>
   </div>
  <div class="screen" id="step4">
-  <!-- ➡️ tutaj przycisk odświeżania zadań -->
-  <div id="task-update-container" style="width:90%; max-width:800px; margin-bottom:10px; text-align:center;">
+  <!-- ⬇️ tutaj wklej -->
+  <div id="task-update-container"
+       style="width:90%; max-width:800px; margin-bottom:10px; text-align:center;">
     <button onclick="handleUpdateTasks()">🔄 Aktualizuj zadania</button>
   </div>
 
-  <!-- lista kafelków z zadaniami -->
   <div class="grid tile-step4" id="subcategories"></div>
 
-  <!-- wybór godzin -->
   <div id="hourSection" style="display:none;">
     <h3>Wybierz liczbę godzin:</h3>
     <div class="hour-options" id="hourTiles"></div>
@@ -387,21 +386,23 @@ async function fetchTasksFromSheet() {
       spreadsheetId: SPREADSHEET_ID,
       range: `NoweZadania!A2:B`
     });
+    // grupowanie po kategorii
     const rows = res.result.values || [];
     const tasksByCat = {};
     rows.forEach(([cat, task]) => {
-      if (cat && task) {
-        tasksByCat[cat] = tasksByCat[cat]||[];
-        if (!tasksByCat[cat].includes(task)) tasksByCat[cat].push(task);
+      if (!cat || !task) return;
+      tasksByCat[cat] = tasksByCat[cat] || [];
+      if (!tasksByCat[cat].includes(task)) {
+        tasksByCat[cat].push(task);
       }
     });
-    setCachedTasks(tasksByCat);
     return tasksByCat;
   } catch (e) {
-    console.error(e);
-    return getCachedTasks();
+    console.error("Błąd fetchowania zadań:", e);
+    return {};
   }
 }
+
 
 
 // renderowanie kafelków projektów
@@ -813,17 +814,20 @@ function selectProject(project) {
 // obsługa przycisku
 async function handleUpdateTasks() {
   if (!currentEntry?.category) return;
-  const tasksByCat = await fetchTasksFromSheet();
-  const list = Array.from(new Set([
-    ...(subcategoriesMap[currentEntry.category]||[]),
-    ...(tasksByCat[currentEntry.category]||[])
-  ]));
+  // 1) pobierz z arkusza (NoweZadania!A2:B) wszystkie zadania
+  const tasksByCat = await fetchTasksFromSheet(); 
+  // 2) połącz ze statycznymi
+  const staticList = subcategoriesMap[currentEntry.category] || [];
+  const customList = tasksByCat[currentEntry.category] || [];
+  const list = Array.from(new Set([...staticList, ...customList]));
+  // 3) wyrenderuj
   renderTiles('subcategories', list, subcat => {
     currentEntry.subcategory = subcat;
     document.getElementById('hourSection').style.display = 'block';
   });
   showToast("Zadania zaktualizowane");
 }
+
 
 
 
