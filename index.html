@@ -981,23 +981,36 @@ async function handleUpdateTasks() {
       }
     }
 
-   sync function actuallySubmitData() {
-   try {
-     const values = state.entries.map(...);
-     await gapi.client.sheets.spreadsheets.values.append({
-       /* ... */
-     });
-  resetForm();
- showToast("Dane zostały zapisane!");
- // skasuj cache statusów, aby wymusić ponowne pobranie
- localStorage.removeItem("workerStatusCache");
- resetForm();
-showToast("Dane zostały zapisane!");
-   } catch (err) {
-     console.error("Błąd zapisu:", err);
-     alert("Nie udało się zapisać danych.");
-   }
- }
+   async function actuallySubmitData() {
+  try {
+    const values = state.entries.map(e => [
+      formatDateForSheets(new Date()),
+      state.worker,
+      e.project,
+      e.category,
+      e.subcategory,
+      e.hours
+    ]);
+
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME_SAVE}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: { values }
+    });
+
+    // usuń cache statusów, żeby przy resetForm() pobrać je na nowo
+    localStorage.removeItem("workerStatusCache");
+
+    resetForm();
+    showToast("Dane zostały zapisane!");
+  } catch (err) {
+    console.error("Błąd zapisu:", err);
+    alert("Nie udało się zapisać danych.");
+  }
+}
+
 
 
     // ————— ZAMIENNIK fetchProjectsFromSheet —————
