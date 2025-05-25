@@ -9,6 +9,18 @@
 
 
   <style>
+/* tylko na ekranie podsumowania: pomniejsze kafelki godzin */
+#step5 .hour-options .tile {
+  width: 50px;       /* dostosuj szerokość */
+  height: 50px;      /* dostosuj wysokość */
+  padding: 5px;      /* mniej paddingu */
+  font-size: 1rem;   /* mniejsza czcionka */
+  /* opcjonalnie: wyrównanie środka */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .tile.recent {
   background: #fffbe6;      /* jaśniejszy żółty */
   border: 2px dashed #ffc107;
