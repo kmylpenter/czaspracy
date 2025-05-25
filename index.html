@@ -442,25 +442,8 @@ async function fetchTasksFromSheet() {
   }
 }
 
-function renderTileGroup(container, items, onClick) {
-    const group = document.createElement('div');
-    group.className = 'project-group';
-    items.forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'tile tile-step2';
-      div.innerText = item;
-      div.onclick = () => {
-        div.classList.add('clicked');
-        setTimeout(() => div.classList.remove('clicked'), 200);
-        onClick(item);
-      };
-      group.appendChild(div);
-    });
-    container.appendChild(group);
-  }
 
-// 3. Nowa wersja renderTiles dla projektów
- function renderProjects() {
+function renderProjects() {
     const all = Array.from(new Set(projects)).filter(Boolean);
     const recent = getRecentProjects().filter(p => all.includes(p));
     const others = all
@@ -471,30 +454,49 @@ function renderTileGroup(container, items, onClick) {
     container.innerHTML = '';
 
     if (recent.length) {
-      container.insertAdjacentHTML('beforeend', '<div class="group-title">Ostatnio używane:</div>');
+      container.insertAdjacentHTML('beforeend',
+        '<div class="group-title">Ostatnio używane:</div>');
       renderTileGroup(container, recent, selectProject);
     }
-    container.insertAdjacentHTML('beforeend', '<div class="group-title">Wszystkie projekty:</div>');
+    container.insertAdjacentHTML('beforeend',
+      '<div class="group-title">Wszystkie projekty:</div>');
     renderTileGroup(container, others, selectProject);
 
     addCustomProjectTile();
   }
+  function renderTileGroup(container, items, onClick) {
+    const group = document.createElement('div');
+    group.className = 'project-group';
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'tile tile-step2';
+      div.innerText = item;
+      div.onclick = () => {
+        addRecentProject(item);   // zapisz wybór
+        div.classList.add('clicked');
+        setTimeout(() => div.classList.remove('clicked'), 200);
+        onClick(item);
+      };
+      group.appendChild(div);
+    });
+    container.appendChild(group);
+  }
 
-// w resetForm: od razu z cache’u, bez fetcha
-async function resetForm() {
-  state = { worker: null, entries: [] };
-  // ładowanie z cache’u
-  loadProjectsFromStorage();
-  projects = getCachedProjects();
-  // reszta initu GAPI + statusMap…
-  const statusMap = await fetchWorkerStatuses();
-  showStep(1);
-  renderTiles('workers', workers, worker => {
-    state.worker = worker;
-    showStep(2);
-    renderProjects();
-  }, statusMap);
-}
+ async function resetForm() {
+    state = { worker: null, entries: [] };
+    loadProjectsFromStorage();
+    if (!gapiInited) {
+      setTimeout(resetForm, 250);
+      return;
+    }
+    const statusMap = await fetchWorkerStatuses();
+    showStep(1);
+    renderTiles('workers', workers, worker => {
+      state.worker = worker;
+      showStep(2);
+      renderProjects();    // <-- tutaj
+    }, statusMap);
+  }
 
 
 async function editEntry(rowIndex) {
@@ -699,7 +701,7 @@ async function saveNewItemToSheet(value, sheetName) {
     }
 
  // ————— Zaktualizowana fetchWorkerStatuses() —————
-  async function fetchWorkerStatuses() {
+async function fetchWorkerStatuses() {
     const statusMap = {};
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -707,7 +709,7 @@ async function saveNewItemToSheet(value, sheetName) {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    // 1) Cache
+    // cache
     const cached = localStorage.getItem('workerStatusCache');
     if (cached) {
       try {
@@ -718,7 +720,6 @@ async function saveNewItemToSheet(value, sheetName) {
       } catch {}
     }
 
-    // 2) Pobranie z arkusza
     try {
       const res = await gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -729,17 +730,19 @@ async function saveNewItemToSheet(value, sheetName) {
       workers.forEach(worker => {
         const hasToday = entries.some(row => {
           const d = new Date(row[0]);
-          return !isNaN(d) &&
-                 d.toISOString().split('T')[0] === todayStr &&
-                 row[1] === worker;
+          return !isNaN(d)
+            && d.toISOString().split('T')[0] === todayStr
+            && row[1] === worker;
         });
         const hasYesterday = entries.some(row => {
           const d = new Date(row[0]);
-          return !isNaN(d) &&
-                 d.toISOString().split('T')[0] === yesterdayStr &&
-                 row[1] === worker;
+          return !isNaN(d)
+            && d.toISOString().split('T')[0] === yesterdayStr
+            && row[1] === worker;
         });
-        statusMap[worker] = hasToday ? 'green' : hasYesterday ? 'yellow' : 'red';
+        statusMap[worker] = hasToday ? 'green'
+                          : hasYesterday ? 'yellow'
+                          : 'red';
       });
 
       localStorage.setItem('workerStatusCache', JSON.stringify({
@@ -869,19 +872,22 @@ function getRecentProjects() {
   }
 
   // ————— Zmodyfikowana selectProject —————
-  function selectProject(project) {
-    addRecentProject(project);
+ function selectProject(project) {
     currentEntry = { project, category: null, subcategory: null, hours: 0 };
     showStep(3);
     renderTiles('categories', categories, async cat => {
       currentEntry.category = cat;
       showStep(4);
       const staticList = subcategoriesMap[cat] || [];
-      const cached = getCachedTasks()[cat] || [];
-      renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
-        currentEntry.subcategory = subcat;
-        document.getElementById('hourSection').style.display = 'block';
-      });
+      const cached     = getCachedTasks()[cat] || [];
+      renderTiles(
+        'subcategories',
+        Array.from(new Set([...staticList, ...cached])),
+        subcat => {
+          currentEntry.subcategory = subcat;
+          document.getElementById('hourSection').style.display = 'block';
+        }
+      );
     });
   }
 
