@@ -9,6 +9,12 @@
 
 
   <style>
+.tile.recent {
+  background: #fffbe6;      /* jaśniejszy żółty */
+  border: 2px dashed #ffc107;
+}
+
+
     body::after {
   content: "";
   position: fixed;
@@ -227,8 +233,20 @@
   </div>
 <div class="screen" id="step2">
   <button onclick="fetchProjectsFromSheet()">🔄 Aktualizuj projekty</button>
-  <div class="grid" id="projects"></div>
+
+  <!-- Sekcja ostatnio używane -->
+  <div id="recent-projects-container" style="width:90%; max-width:800px; margin-top:20px;">
+    <h3>Ostatnio używane:</h3>
+    <div class="grid" id="recent-projects"></div>
+  </div>
+
+  <!-- Sekcja wszystkie projekty -->
+  <div id="all-projects-container" style="width:90%; max-width:800px; margin-top:20px;">
+    <h3>Wszystkie projekty:</h3>
+    <div class="grid" id="projects"></div>
+  </div>
 </div>
+
   <div class="screen" id="step3">
     <div class="grid" id="categories"></div>
   </div>
@@ -402,13 +420,44 @@ async function fetchTasksFromSheet() {
     return getCachedTasks();
   }
 }
+// Pobierz z localStorage lub []  
+function getRecentProjects() {
+  try { return JSON.parse(localStorage.getItem('recentProjects'))||[]; }
+  catch { return []; }
+}
+function setRecentProjects(arr) {
+  localStorage.setItem('recentProjects', JSON.stringify(arr));
+}
+// Przy wyborze projektu – wrzuć na początek, usuń duplikaty, zachowaj max 7
+function updateRecentProjects(project) {
+  const recent = getRecentProjects();
+  const filtered = [project, ...recent.filter(p=>p!==project)];
+  setRecentProjects(filtered.slice(0,7));
+}
 
 
 // renderowanie kafelków projektów
 function renderProjects() {
+  // 1) render ostatnio używane
+  const recent = getRecentProjects();
+  const recentContainer = document.getElementById('recent-projects');
+  recentContainer.innerHTML = '';
+  if (recent.length) {
+    renderTiles('recent-projects', recent, selectProject);
+    // dodaj klasę dla koloru
+    Array.from(recentContainer.children)
+         .forEach(div=>div.classList.add('recent'));
+  } else {
+    // jeśli pusto – schowaj cały blok
+    document.getElementById('recent-projects-container').style.display = 'none';
+  }
+
+  // 2) render wszystkich projektów
+  document.getElementById('all-projects-container').style.display = 'block';
   renderTiles('projects', projects, selectProject);
   addCustomProjectTile();
 }
+
 
 // w resetForm: od razu z cache’u, bez fetcha
 async function resetForm() {
@@ -794,6 +843,7 @@ async function saveNewTaskToSheet(category, taskName) {
     // ————— Modyfikacja selectProject → wybór kategorii → krok 4 —————
 // po wyborze kategorii:
 function selectProject(project) {
+  updateRecentProjects(project);
   currentEntry = { project, category: null, subcategory: null, hours: 0 };
   showStep(3);
   // …krok 3→4:
