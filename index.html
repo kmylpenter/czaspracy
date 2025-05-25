@@ -69,17 +69,22 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      gap: 10px;
-      margin: 20px;
-      width: 90%;
-      max-width: 800px;
-    }
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+  margin: 20px;
+  width: 90%;
+  max-width: 800px;
+  justify-content: center;  /* centrowanie całej siatki */
+  justify-items: center;    /* centrowanie kafelka w każdej komórce */
+}
     .tile {
       background: #fff;
       color: #222;
       padding: 20px;
       text-align: center;
+      display: flex;
+        justify-content: center;
+        align-items: center;
       border-radius: 10px;
       font-size: 1.1rem;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -431,7 +436,9 @@ function setRecentProjects(arr) {
 }
 // Przy wyborze projektu – wrzuć na początek, usuń duplikaty, zachowaj max 7
 function updateRecentProjects(project) {
-  const recent = getRecentProjects();
+  // tylko 5 pierwszych
+const recent = getRecentProjects().slice(0,5);
+
   const filtered = [project, ...recent.filter(p=>p!==project)];
   setRecentProjects(filtered.slice(0,7));
 }
@@ -439,7 +446,9 @@ function updateRecentProjects(project) {
 
 // renderowanie kafelków projektów
 function renderProjects() {
-  const recent = getRecentProjects();
+  // tylko 5 pierwszych
+const recent = getRecentProjects().slice(0,5);
+
   const recentContainer = document.getElementById('recent-projects');
   recentContainer.innerHTML = '';
 
