@@ -295,6 +295,47 @@
   </div>
 
   <script>
+function renderProjects() {
+  const all = Array.from(new Set(projects)).filter(Boolean);
+  const recent = getRecentProjects().filter(p => all.includes(p));
+  const others = all
+    .filter(p => !recent.includes(p))
+    .sort((a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }));
+
+  const container = document.getElementById('projects');
+  container.innerHTML = '';
+
+  if (recent.length) {
+    container.insertAdjacentHTML('beforeend',
+      '<div class="group-title">Ostatnio używane:</div>');
+    renderTileGroup(container, recent, selectProject);
+  }
+  container.insertAdjacentHTML('beforeend',
+    '<div class="group-title">Wszystkie projekty:</div>');
+  renderTileGroup(container, others, selectProject);
+
+  addCustomProjectTile();
+}
+
+function renderTileGroup(container, items, onClick) {
+  const group = document.createElement('div');
+  group.className = 'project-group';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'tile tile-step2';
+    div.innerText = item;
+    div.onclick = () => {
+      addRecentProject(item);
+      div.classList.add('clicked');
+      setTimeout(() => div.classList.remove('clicked'), 200);
+      onClick(item);
+    };
+    group.appendChild(div);
+  });
+  container.appendChild(group);
+}
+
+
 // ————— ZAMIENNIK showRecentEntries —————
 async function showRecentEntries() {
   try {
@@ -483,20 +524,21 @@ function renderProjects() {
   }
 
  async function resetForm() {
-    state = { worker: null, entries: [] };
-    loadProjectsFromStorage();
-    if (!gapiInited) {
-      setTimeout(resetForm, 250);
-      return;
-    }
-    const statusMap = await fetchWorkerStatuses();
-    showStep(1);
-    renderTiles('workers', workers, worker => {
-      state.worker = worker;
-      showStep(2);
-      renderProjects();    // <-- tutaj
-    }, statusMap);
+  state = { worker: null, entries: [] };
+  loadProjectsFromStorage();
+  if (!gapiInited) {
+    setTimeout(resetForm, 250);
+    return;
   }
+  const statusMap = await fetchWorkerStatuses();
+  showStep(1);
+  renderTiles('workers', workers, worker => {
+    state.worker = worker;
+    showStep(2);
+    renderProjects();
+  }, statusMap);
+}
+
 
 
 async function editEntry(rowIndex) {
@@ -702,59 +744,59 @@ async function saveNewItemToSheet(value, sheetName) {
 
  // ————— Zaktualizowana fetchWorkerStatuses() —————
 async function fetchWorkerStatuses() {
-    const statusMap = {};
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const statusMap = {};
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    // cache
-    const cached = localStorage.getItem('workerStatusCache');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed.date === todayStr && parsed.statusMap) {
-          return parsed.statusMap;
-        }
-      } catch {}
-    }
-
+  // cache – zwróć raz na dzień
+  const cached = localStorage.getItem("workerStatusCache");
+  if (cached) {
     try {
-      const res = await gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME_SAVE}!A2:F`,
-      });
-      const entries = res.result.values || [];
-
-      workers.forEach(worker => {
-        const hasToday = entries.some(row => {
-          const d = new Date(row[0]);
-          return !isNaN(d)
-            && d.toISOString().split('T')[0] === todayStr
-            && row[1] === worker;
-        });
-        const hasYesterday = entries.some(row => {
-          const d = new Date(row[0]);
-          return !isNaN(d)
-            && d.toISOString().split('T')[0] === yesterdayStr
-            && row[1] === worker;
-        });
-        statusMap[worker] = hasToday ? 'green'
-                          : hasYesterday ? 'yellow'
-                          : 'red';
-      });
-
-      localStorage.setItem('workerStatusCache', JSON.stringify({
-        date: todayStr,
-        statusMap
-      }));
-    } catch (e) {
-      console.error('Błąd pobierania statusów pracowników:', e);
-      showToast('Nie udało się sprawdzić, kto się wpisał.', true);
-    }
-    return statusMap;
+      const { date, statusMap: sm } = JSON.parse(cached);
+      if (date === todayStr) return sm;
+    } catch (e) { console.warn(e); }
   }
+
+  // pobierz nowe
+  try {
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID, range: `${SHEET_NAME_SAVE}!A2:F`
+    });
+    const entries = res.result.values || [];
+
+    workers.forEach(worker => {
+      const hasToday = entries.some(row => {
+        const d = new Date(row[0]);
+        return !isNaN(d)
+          && d.toISOString().split('T')[0] === todayStr
+          && row[1] === worker;
+      });
+      const hasYesterday = entries.some(row => {
+        const d = new Date(row[0]);
+        return !isNaN(d)
+          && d.toISOString().split('T')[0] === yesterdayStr
+          && row[1] === worker;
+      });
+      statusMap[worker] = hasToday ? 'green'
+                        : hasYesterday ? 'yellow'
+                        : 'red';
+    });
+
+    // zapisz cache
+    localStorage.setItem("workerStatusCache", JSON.stringify({
+      date: todayStr, statusMap
+    }));
+  } catch (e) {
+    console.error(e);
+    showToast("Nie udało się sprawdzić, kto się wpisał.", true);
+  }
+
+  return statusMap;
+}
+
 
     function renderTiles(containerId, items, onClick, statusMap = {}) {
 console.log("Rendertiles", { containerId, items, statusMap });
@@ -1014,31 +1056,24 @@ showToast("Dane zostały zapisane!");
 
     // ————— ZAMIENNIK fetchProjectsFromSheet —————
 async function fetchProjectsFromSheet() {
+  if (!gapiInited) return;
   try {
-    // pobierz równolegle oba zakresy
-    const [resBase, resCustom] = await Promise.all([
-      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME_LOAD}!A2:A?key=${API_KEY}`),
-      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/NoweProjekty!A2:A?key=${API_KEY}`)
+    const [base, custom] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET_NAME_LOAD}!A2:A` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `NoweProjekty!A2:A` })
     ]);
-    const dataBase   = await resBase.json();
-    const dataCustom = await resCustom.json();
-
-    const baseList   = dataBase.values   ? dataBase.values.flat()   : [];
-    const customList = dataCustom.values ? dataCustom.values.flat() : [];
-
-    // usuń duplikaty i puste
+    const baseList   = base.result.values?.flat()   || [];
+    const customList = custom.result.values?.flat() || [];
     projects = Array.from(new Set([...baseList, ...customList].filter(Boolean)));
-
-    // zapamiętaj w localStorage i przerysuj
-    localStorage.setItem('projekty', JSON.stringify(projects));
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
-    showToast("Zaktualizowano projekty (Podstawowe + Nowe).");
+    setCachedProjects(projects);
+    renderProjects();
+    showToast("Projekty zaktualizowane");
   } catch (e) {
-    console.error("Błąd pobierania projektów:", e);
-    alert("Nie udało się pobrać projektów.");
+    console.error(e);
+    showToast("Błąd aktualizacji projektów", true);
   }
 }
+
 
 // ————— NOWA funkcja pobierająca zadania z arkusza NoweZadania —————
 async function fetchSubcategoriesFromSheet(category) {
