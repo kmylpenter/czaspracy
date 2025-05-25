@@ -71,16 +71,29 @@
   box-sizing: border-box;
 }
 
-    .tile {
+   .tile {
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: clamp(0.7rem, 2.5vw, 1.1rem);
+  font-size: 1.1rem;
+  line-height: 1.2;
+  padding: 20px;
   overflow-wrap: break-word;
   word-break: break-word;
-  line-height: 1.2;
+  height: 100px;
+  min-height: 100px;
 }
+
+.tile span {
+  display: block;
+  width: 100%;
+  font-size: clamp(0.8rem, 1.5vw, 1.1rem);
+  word-wrap: break-word;
+}
+
+
+
 
 @media (max-width: 768px) {
   #clock, h2, .nav-bar {
@@ -759,7 +772,7 @@ console.log("Rendertiles", { containerId, items, statusMap });
       div.classList.add(`tile-status-${statusMap[item]}`);
     }
 
-    div.innerText = item;
+    div.innerHTML = `<span>${item}</span>`;
     div.onclick = () => {
       div.classList.add('clicked');
       setTimeout(() => div.classList.remove('clicked'), 200);
