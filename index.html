@@ -233,14 +233,15 @@
     <div class="grid" id="categories"></div>
   </div>
  <div class="screen" id="step4">
-  <!-- ⬇️ tutaj wklej -->
-  <div id="task-update-container"
-       style="width:90%; max-width:800px; margin-bottom:10px; text-align:center;">
+  <!-- ➡️ tutaj przycisk odświeżania zadań -->
+  <div id="task-update-container" style="width:90%; max-width:800px; margin-bottom:10px; text-align:center;">
     <button onclick="handleUpdateTasks()">🔄 Aktualizuj zadania</button>
   </div>
 
+  <!-- lista kafelków z zadaniami -->
   <div class="grid tile-step4" id="subcategories"></div>
 
+  <!-- wybór godzin -->
   <div id="hourSection" style="display:none;">
     <h3>Wybierz liczbę godzin:</h3>
     <div class="hour-options" id="hourTiles"></div>
@@ -386,23 +387,21 @@ async function fetchTasksFromSheet() {
       spreadsheetId: SPREADSHEET_ID,
       range: `NoweZadania!A2:B`
     });
-    // grupowanie po kategorii
     const rows = res.result.values || [];
     const tasksByCat = {};
     rows.forEach(([cat, task]) => {
-      if (!cat || !task) return;
-      tasksByCat[cat] = tasksByCat[cat] || [];
-      if (!tasksByCat[cat].includes(task)) {
-        tasksByCat[cat].push(task);
+      if (cat && task) {
+        tasksByCat[cat] = tasksByCat[cat]||[];
+        if (!tasksByCat[cat].includes(task)) tasksByCat[cat].push(task);
       }
     });
+    setCachedTasks(tasksByCat);
     return tasksByCat;
   } catch (e) {
-    console.error("Błąd fetchowania zadań:", e);
-    return {};
+    console.error(e);
+    return getCachedTasks();
   }
 }
-
 
 
 // renderowanie kafelków projektów
@@ -550,13 +549,12 @@ updateClock();
 
     // ————— DANE APLIKACJI —————
     const workers = ["Kamil","Paweł","Piotr","Przemek","Robert"];
-    const categories = ["Stal","Drewno","Montaż","Biuro","Usprawnienia"];
+    const categories = ["Stal","Drewno","Montaż","Biuro"];
     const subcategoriesMap = {
-      "Stal": ["Konstrukcja","Balustrada","Logistyka"],
-      "Drewno": ["Elementy biegu","Konstrukcja","Poręcze","Balustrady","Szlifowanie końcowe","Logistyka"],
-      "Montaż": ["Elementy biegu","Konstrukcja","Poręcze", "Balustrady","Logistyka","Załadunek"],
+      "Stal": ["Konstrukcja","Cięcie","Szlifowanie","Malowanie proszkowe"],
+      "Drewno": ["Szlifowanie","Lakierowanie","Docinanie","Klejenie"],
+      "Montaż": ["Transport","Instalacja","Dostosowanie","Pomiar na miejscu"],
       "Biuro": ["Mailing","Faktury","Telefon","Projektowanie"]
-      "Usprawnienia": ["Mailing","Faktury","Telefon","Projektowanie"]
     };
     let projects = [];
     let state = { worker: null, entries: [] };
@@ -815,20 +813,17 @@ function selectProject(project) {
 // obsługa przycisku
 async function handleUpdateTasks() {
   if (!currentEntry?.category) return;
-  // 1) pobierz z arkusza (NoweZadania!A2:B) wszystkie zadania
-  const tasksByCat = await fetchTasksFromSheet(); 
-  // 2) połącz ze statycznymi
-  const staticList = subcategoriesMap[currentEntry.category] || [];
-  const customList = tasksByCat[currentEntry.category] || [];
-  const list = Array.from(new Set([...staticList, ...customList]));
-  // 3) wyrenderuj
+  const tasksByCat = await fetchTasksFromSheet();
+  const list = Array.from(new Set([
+    ...(subcategoriesMap[currentEntry.category]||[]),
+    ...(tasksByCat[currentEntry.category]||[])
+  ]));
   renderTiles('subcategories', list, subcat => {
     currentEntry.subcategory = subcat;
     document.getElementById('hourSection').style.display = 'block';
   });
   showToast("Zadania zaktualizowane");
 }
-
 
 
 
