@@ -10,87 +10,56 @@
 
   <style>
     body::after {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: url('https://raw.githubusercontent.com/kmylpenter/czaspracy/main/Finalkmylpenter_3.0_trademark_final.png') no-repeat center center;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  opacity: 0.03;
-  pointer-events: none;
-  z-index: 0;
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: url('https://raw.githubusercontent.com/kmylpenter/czaspracy/main/Finalkmylpenter_3.0_trademark_final.png') no-repeat center center;
+      background-size: contain;
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 0;
     }
 
     body {
       font-family: 'Segoe UI', sans-serif;
       margin: 0;
-      padding: 0;
+      padding: 1rem;
       background: #f9f9f9;
       color: #222;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
+
+    /* Nagłówki i nawigacja */
+    #clock,
+    .nav-bar,
+    #step-title {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 0.75rem;
+    }
+    .nav-bar {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 600px) {
+      .nav-bar button {
+        flex: 1 1 auto;
+        min-width: 80px;
+      }
+    }
+
     h2 {
       margin: 20px 0 0 0;
     }
-    /* przycisk edycji w tabeli wpisów */
-    #entries-popup table td > button {
-      padding: 0;
-      margin: 0;
-      line-height: 1;
-      font-size: inherit;      /* dziedziczy rozmiar 0.8rem z tabeli */
-      background: none;
-      border: none;
-      cursor: pointer;
-      vertical-align: middle;
-    }
 
-
-    .screen {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-    }
-
-    .active {
-      display: flex;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      gap: 10px;
-      margin: 20px;
-      width: 90%;
-      max-width: 800px;
-    }
-    /* Ogólne centrowanie i skalowanie tekstu w kafelku */
-.tile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;       /* wyrównanie do środka w poziomie */
-  padding: 1rem;
-  /* skalowanie tekstu w dół: */
-  font-size: clamp(0.8rem, 2.5vw, 1.1rem);
-  line-height: 1.2;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-
-    .tile:hover {
-      background: #f0f0f0;
-      transform: scale(1.05);
-    }
-    .tile.selected {
-      background: #d0e8ff;
-      border: 2px solid #3a84ff;
-    }
+    /* Przyciski */
     button {
       margin: 10px;
       padding: 10px 20px;
@@ -105,42 +74,6 @@
     button:hover {
       background: #5aa0ff;
     }
-    .summary-entry {
-      margin: 10px 0;
-      padding: 10px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    body {
-  padding: 1rem;
-}
-
-.grid.project-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 0.5rem;
-}
-
-#clock, .nav-bar, #step-title {
-  width: 100%;
-  text-align: center;
-  margin-bottom: 0.75rem;
-}
-.nav-bar {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-@media (max-width: 600px) {
-  .nav-bar button {
-    flex: 1 1 auto;
-    min-width: 80px;
-  }
-}
-px;
-    }
     .back-button {
       background: #e0e0e0;
       color: #333;
@@ -148,6 +81,99 @@ px;
     .back-button:hover {
       background: #d0d0d0;
     }
+
+    /* Ekrany/sekcje */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    .active {
+      display: flex;
+    }
+
+    /* Siatki */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+      margin: 20px;
+      width: 90%;
+      max-width: 800px;
+    }
+    .grid.project-group {
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 0.5rem;
+    }
+
+    /* Tytuły grup */
+    .group-title {
+      width: 90%;
+      max-width: 800px;
+      font-weight: bold;
+      margin: 1rem 0 0.5rem;
+      text-align: left;
+    }
+
+    /* Kafelki */
+    .tile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem;
+      font-size: clamp(0.8rem, 2.5vw, 1.1rem);
+      line-height: 1.2;
+      word-break: break-word;
+      white-space: pre-wrap;
+      background: #fff;
+      color: #222;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    .tile:hover {
+      background: #f0f0f0;
+      transform: scale(1.05);
+    }
+    .tile.selected {
+      background: #d0e8ff;
+      border: 2px solid #3a84ff;
+    }
+
+    /* Status pracowników */
+    .tile-status-green {
+      background: #d4edda !important;
+      border: 2px solid #28a745;
+    }
+    .tile-status-yellow {
+      background: #fff3cd !important;
+      border: 2px solid #ffc107;
+    }
+    .tile-status-red {
+      background: #f8d7da !important;
+      border: 2px solid #dc3545;
+    }
+
+    /* Kroki kolorów */
+    .tile-step1 { background: #ffffff; }
+    .tile-step2 { background: #e6f7ff; }
+    .tile-step3 { background: #fdf5e6; }
+    .tile-step4 { background: #e6ffe6; }
+
+    /* Animacja kliknięcia */
+    .tile.clicked {
+      animation: pop 0.2s ease-out;
+    }
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    /* Kafelki godzin */
     .hour-options {
       display: grid;
       grid-template-columns: repeat(8, 1fr);
@@ -155,6 +181,19 @@ px;
       margin-top: 10px;
       width: 90%;
       max-width: 800px;
+    }
+    .hour-options .tile {
+      white-space: nowrap;
+      min-width: 2rem;
+    }
+
+    /* Podsumowanie */
+    .summary-entry {
+      margin: 10px 0;
+      padding: 10px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
     .summary-entry-container {
       display: grid;
@@ -169,12 +208,8 @@ px;
       font-weight: bold;
       margin-left: 20px;
     }
-    .total-hours.red {
-      color: #d80000;
-    }
-    .total-hours.green {
-      color: #006400;
-    }
+    .total-hours.red { color: #d80000; }
+    .total-hours.green { color: #006400; }
     .remove-btn {
       float: right;
       background: none;
@@ -184,58 +219,35 @@ px;
       cursor: pointer;
       margin-top: -10px;
     }
-    .remove-btn:hover {
-      color: #ff0000;
+    .remove-btn:hover { color: #ff0000; }
+
+    /* Popup i toast */
+    #entries-popup table td > button {
+      padding: 0;
+      margin: 0;
+      line-height: 1;
+      font-size: inherit;
+      background: none;
+      border: none;
+      cursor: pointer;
+      vertical-align: middle;
     }
-    
-    .tile-step1 { background: #ffffff; }
-.tile-step2 { background: #e6f7ff; }
-.tile-step3 { background: #fdf5e6; }
-.tile-step4 { background: #e6ffe6; }
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #28a745;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 1rem;
+      display: none;
+      z-index: 9999;
+    }
+    #toast.error { background: #d80000; }
+</style>
 
-.tile.clicked {
-  animation: pop 0.2s ease-out;
-}
-
-@keyframes pop {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-#toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #28a745;
-  color: white;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-size: 1rem;
-  display: none;
-  z-index: 9999;
-}
-
-#toast.error {
-  background: #d80000;
-}
-
-.tile-status-green {
-  background: #d4edda !important;
-  border: 2px solid #28a745;
-}
-.tile-status-yellow {
-  background: #fff3cd !important;
-  border: 2px solid #ffc107;
-}
-.tile-status-red {
-  background: #f8d7da !important;
-  border: 2px solid #dc3545;
-}
-
-    
-  </style>
 </head>
 <body>
 <h3 id="clock" style="margin-top: 0;"></h3>
@@ -431,40 +443,42 @@ async function fetchTasksFromSheet() {
 }
 
 function renderTileGroup(container, items, onClick) {
-  const group = document.createElement('div');
-  group.className = 'grid project-group';
-  items.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'tile tile-step2';
-    div.innerText = item;
-    div.onclick = () => { 
-      div.classList.add('clicked');
-      setTimeout(()=>div.classList.remove('clicked'),200);
-      onClick(item);
-    };
-    group.appendChild(div);
-  });
-  container.appendChild(group);
-}
+    const group = document.createElement('div');
+    group.className = 'project-group';
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'tile tile-step2';
+      div.innerText = item;
+      div.onclick = () => {
+        div.classList.add('clicked');
+        setTimeout(() => div.classList.remove('clicked'), 200);
+        onClick(item);
+      };
+      group.appendChild(div);
+    });
+    container.appendChild(group);
+  }
 
 // 3. Nowa wersja renderTiles dla projektów
-function renderProjects() {
-  const all = Array.from(new Set(projects)).filter(Boolean);
-  const recent = getRecentProjects().filter(p => all.includes(p));
-  const others = all.filter(p => !recent.includes(p)).sort((a,b)=>a.localeCompare(b,'pl',{sensitivity:'base'}));
+ function renderProjects() {
+    const all = Array.from(new Set(projects)).filter(Boolean);
+    const recent = getRecentProjects().filter(p => all.includes(p));
+    const others = all
+      .filter(p => !recent.includes(p))
+      .sort((a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }));
 
-  const container = document.getElementById('projects');
-  container.innerHTML = '';
+    const container = document.getElementById('projects');
+    container.innerHTML = '';
 
-  if (recent.length) {
-    container.insertAdjacentHTML('beforeend','<h4 class="group-title">Ostatnio używane:</h4>');
-    renderTileGroup(container, recent, selectProject);
+    if (recent.length) {
+      container.insertAdjacentHTML('beforeend', '<div class="group-title">Ostatnio używane:</div>');
+      renderTileGroup(container, recent, selectProject);
+    }
+    container.insertAdjacentHTML('beforeend', '<div class="group-title">Wszystkie projekty:</div>');
+    renderTileGroup(container, others, selectProject);
+
+    addCustomProjectTile();
   }
-  container.insertAdjacentHTML('beforeend','<h4 class="group-title">Wszystkie projekty:</h4>');
-  renderTileGroup(container, others, selectProject);
-
-  addCustomProjectTile();
-}
 
 // w resetForm: od razu z cache’u, bez fetcha
 async function resetForm() {
@@ -684,67 +698,60 @@ async function saveNewItemToSheet(value, sheetName) {
       if (currentStep > 1) showStep(currentStep - 1);
     }
 
-// Zastąp obecną funkcję fetchWorkerStatuses() tym pełnym blokiem:
-async function fetchWorkerStatuses() {
-  const statusMap = {};
-  const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split("T")[0];
+ // ————— Zaktualizowana fetchWorkerStatuses() —————
+  async function fetchWorkerStatuses() {
+    const statusMap = {};
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-  // Spróbuj wczytać z cache
-  const cached = localStorage.getItem("workerStatusCache");
-  if (cached) {
-    try {
-      const parsed = JSON.parse(cached);
-      if (parsed.date === todayStr && parsed.statusMap) {
-        return parsed.statusMap;
-      }
-    } catch (e) {
-      console.warn("Błąd parsowania cache:", e);
+    // 1) Cache
+    const cached = localStorage.getItem('workerStatusCache');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.date === todayStr && parsed.statusMap) {
+          return parsed.statusMap;
+        }
+      } catch {}
     }
-  }
 
-  try {
-    const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME_SAVE}!A2:F`,
-    });
-    const entries = res.result.values || [];
-
-    workers.forEach(worker => {
-      const hasToday = entries.some(row => {
-        const d = new Date(row[0]);
-        if (isNaN(d)) return false;
-        return d.toISOString().split("T")[0] === todayStr
-               && row[1] === worker;
+    // 2) Pobranie z arkusza
+    try {
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME_SAVE}!A2:F`,
       });
-      const hasYesterday = entries.some(row => {
-        const d = new Date(row[0]);
-        if (isNaN(d)) return false;
-        return d.toISOString().split("T")[0] === yesterdayStr
-               && row[1] === worker;
+      const entries = res.result.values || [];
+
+      workers.forEach(worker => {
+        const hasToday = entries.some(row => {
+          const d = new Date(row[0]);
+          return !isNaN(d) &&
+                 d.toISOString().split('T')[0] === todayStr &&
+                 row[1] === worker;
+        });
+        const hasYesterday = entries.some(row => {
+          const d = new Date(row[0]);
+          return !isNaN(d) &&
+                 d.toISOString().split('T')[0] === yesterdayStr &&
+                 row[1] === worker;
+        });
+        statusMap[worker] = hasToday ? 'green' : hasYesterday ? 'yellow' : 'red';
       });
 
-      if (hasToday)      statusMap[worker] = "green";
-      else if (hasYesterday) statusMap[worker] = "yellow";
-      else                statusMap[worker] = "red";
-    });
-
-    // Zapisz do cache
-    localStorage.setItem("workerStatusCache", JSON.stringify({
-      date: todayStr,
-      statusMap
-    }));
-
-  } catch (e) {
-    console.error("Błąd pobierania statusów pracowników:", e);
-    showToast("Nie udało się sprawdzić, kto się wpisał.", true);
+      localStorage.setItem('workerStatusCache', JSON.stringify({
+        date: todayStr,
+        statusMap
+      }));
+    } catch (e) {
+      console.error('Błąd pobierania statusów pracowników:', e);
+      showToast('Nie udało się sprawdzić, kto się wpisał.', true);
+    }
+    return statusMap;
   }
-
-  return statusMap;
-}
 
     function renderTiles(containerId, items, onClick, statusMap = {}) {
 console.log("Rendertiles", { containerId, items, statusMap });
@@ -849,39 +856,34 @@ async function saveNewTaskToSheet(category, taskName) {
   }
 }
 
-// 1. Helper do zarządzania "ostatnio używane"
 function getRecentProjects() {
-  try { return JSON.parse(localStorage.getItem('recentProjects')) || []; }
-  catch { return []; }
-}
-function addRecentProject(name) {
-  const recent = getRecentProjects();
-  // usuń jeśli już jest, wrzuć na początek, przytnij do np. 7
-  const idx = recent.indexOf(name);
-  if (idx !== -1) recent.splice(idx,1);
-  recent.unshift(name);
-  localStorage.setItem('recentProjects', JSON.stringify(recent.slice(0,7)));
-}
+    try { return JSON.parse(localStorage.getItem('recentProjects')) || []; }
+    catch { return []; }
+  }
+  function addRecentProject(name) {
+    const recent = getRecentProjects();
+    const idx = recent.indexOf(name);
+    if (idx !== -1) recent.splice(idx, 1);
+    recent.unshift(name);
+    localStorage.setItem('recentProjects', JSON.stringify(recent.slice(0, 7)));
+  }
 
-    // ————— Modyfikacja selectProject → wybór kategorii → krok 4 —————
-// po wyborze kategorii:
-function selectProject(project) {
-  addRecentProject(project);
-  currentEntry = { project, category: null, subcategory: null, hours: 0 };
-  showStep(3);
-  // …krok 3→4:
-  renderTiles('categories', categories, async cat => {
-    currentEntry.category = cat;
-    showStep(4);
-    // najpierw: statyczne + cache
-    const staticList = subcategoriesMap[cat]||[];
-    const cached = getCachedTasks()[cat]||[];
-    renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
-      currentEntry.subcategory = subcat;
-      document.getElementById('hourSection').style.display = 'block';
+  // ————— Zmodyfikowana selectProject —————
+  function selectProject(project) {
+    addRecentProject(project);
+    currentEntry = { project, category: null, subcategory: null, hours: 0 };
+    showStep(3);
+    renderTiles('categories', categories, async cat => {
+      currentEntry.category = cat;
+      showStep(4);
+      const staticList = subcategoriesMap[cat] || [];
+      const cached = getCachedTasks()[cat] || [];
+      renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
+        currentEntry.subcategory = subcat;
+        document.getElementById('hourSection').style.display = 'block';
+      });
     });
-  });
-}
+  }
 
 // obsługa przycisku
 async function handleUpdateTasks() {
