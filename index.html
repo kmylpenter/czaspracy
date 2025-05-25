@@ -247,6 +247,7 @@
   </div>
 </div>
 
+
   <div class="screen" id="step3">
     <div class="grid" id="categories"></div>
   </div>
@@ -438,25 +439,29 @@ function updateRecentProjects(project) {
 
 // renderowanie kafelków projektów
 function renderProjects() {
-  // 1) render ostatnio używane
   const recent = getRecentProjects();
   const recentContainer = document.getElementById('recent-projects');
   recentContainer.innerHTML = '';
+
+  // *** DLA CELÓW DEBUGU dodaj na chwilę logi:
+  console.log('renderProjects ↠ recent:', recent, 'all projects:', projects);
+
+  // zawsze pokazuj sekcję (przynajmniej na czas testów)
+  document.getElementById('recent-projects-container').style.display = 'block';
+
+  // render kafelków „ostatnio używane”
   if (recent.length) {
     renderTiles('recent-projects', recent, selectProject);
-    // dodaj klasę dla koloru
     Array.from(recentContainer.children)
-         .forEach(div=>div.classList.add('recent'));
-  } else {
-    // jeśli pusto – schowaj cały blok
-    document.getElementById('recent-projects-container').style.display = 'none';
+         .forEach(div => div.classList.add('recent'));
   }
 
-  // 2) render wszystkich projektów
+  // render wszystkich projektów poniżej
   document.getElementById('all-projects-container').style.display = 'block';
   renderTiles('projects', projects, selectProject);
   addCustomProjectTile();
 }
+
 
 
 // w resetForm: od razu z cache’u, bez fetcha
@@ -629,8 +634,8 @@ function handleAddCustom() {
     if (name && !projects.includes(name)) {
       projects.push(name);
       localStorage.setItem('projekty', JSON.stringify(projects));
-      renderTiles('projects', projects, selectProject);
-      addCustomProjectTile();
+      renderProjects();
+
       saveNewItemToSheet(name, 'NoweProjekty');
     }
   }
@@ -794,8 +799,8 @@ console.log("Rendertiles", { containerId, items, statusMap });
   renderTiles('workers', workers, worker => {
     state.worker = worker;
     showStep(2);
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
+    renderProjects();
+
   }, statusMap);
 }
 
@@ -805,8 +810,8 @@ console.log("Rendertiles", { containerId, items, statusMap });
   if (name && !projects.includes(name)) {
     projects.push(name);
     localStorage.setItem('projekty', JSON.stringify(projects));
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
+   renderProjects();
+
     // zapisujemy do arkusza NoweProjekty
     saveNewItemToSheet(name, 'NoweProjekty');
   }
@@ -941,8 +946,8 @@ async function handleUpdateTasks() {
     }
     function addAnotherProject(){
       showStep(2);
-      renderTiles('projects', projects, selectProject);
-      addCustomProjectTile();
+      renderProjects();
+
     }
 
     // ————— ZAPIS DO SHEETS —————
@@ -1000,8 +1005,8 @@ async function fetchProjectsFromSheet() {
 
     // zapamiętaj w localStorage i przerysuj
     localStorage.setItem('projekty', JSON.stringify(projects));
-    renderTiles('projects', projects, selectProject);
-    addCustomProjectTile();
+    renderProjects();
+
     showToast("Zaktualizowano projekty (Podstawowe + Nowe).");
   } catch (e) {
     console.error("Błąd pobierania projektów:", e);
