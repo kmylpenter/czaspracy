@@ -14,6 +14,15 @@
   border: 2px dashed #ffc107;
 }
 
+/* przywracamy mniejsze kafelki tylko w #hourTiles */
+#hourTiles .tile {
+  width: 50px;      /* dostosuj szerokość */
+  height: 50px;     /* dostosuj wysokość */
+  padding: 5px;     /* mniej paddingu */
+  font-size: 1rem;  /* ewentualnie zmniejsz czcionkę */
+}
+
+/* dzięki temu ogólne .tile (projekty, recent) dalej są 120×80 */
 
     body::after {
   content: "";
