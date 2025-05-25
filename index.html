@@ -62,55 +62,25 @@
       display: flex;
     }
     .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
-  margin: 20px;
-  width: 90%;
-  max-width: 800px;
-  box-sizing: border-box;
-}
-
-   .tile {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+      margin: 20px;
+      width: 90%;
+      max-width: 800px;
+    }
+    /* Ogólne centrowanie i skalowanie tekstu w kafelku */
+.tile {
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  font-size: 1.1rem;
+  text-align: center;       /* wyrównanie do środka w poziomie */
+  padding: 1rem;
+  /* skalowanie tekstu w dół: */
+  font-size: clamp(0.8rem, 2.5vw, 1.1rem);
   line-height: 1.2;
-  padding: 20px;
-  overflow-wrap: break-word;
   word-break: break-word;
-  height: 100px;
-  min-height: 100px;
-}
-
-.tile span {
-  display: block;
-  width: 100%;
-  font-size: clamp(0.8rem, 1.5vw, 1.1rem);
-  word-wrap: break-word;
-}
-
-
-
-
-@media (max-width: 768px) {
-  #clock, h2, .nav-bar {
-    margin: 10px auto;
-    text-align: center;
-    width: 100%;
-  }
-  h2 {
-    margin-top: 20px;
-    font-size: 1.2rem;
-  }
-  .nav-bar {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-  }
+  white-space: pre-wrap;
 }
 
     .tile:hover {
@@ -142,10 +112,34 @@
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    .nav-bar {
-      position: absolute;
-      left: 10px;
-      top: 10px;
+    body {
+  padding: 1rem;
+}
+
+.grid.project-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 0.5rem;
+}
+
+#clock, .nav-bar, #step-title {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+.nav-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .nav-bar button {
+    flex: 1 1 auto;
+    min-width: 80px;
+  }
+}
+px;
     }
     .back-button {
       background: #e0e0e0;
@@ -436,41 +430,41 @@ async function fetchTasksFromSheet() {
   }
 }
 
+function renderTileGroup(container, items, onClick) {
+  const group = document.createElement('div');
+  group.className = 'grid project-group';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'tile tile-step2';
+    div.innerText = item;
+    div.onclick = () => { 
+      div.classList.add('clicked');
+      setTimeout(()=>div.classList.remove('clicked'),200);
+      onClick(item);
+    };
+    group.appendChild(div);
+  });
+  container.appendChild(group);
+}
 
-// renderowanie kafelków projektów
+// 3. Nowa wersja renderTiles dla projektów
 function renderProjects() {
-  const recent = JSON.parse(localStorage.getItem("recentProjects") || "[]");
-  const remaining = projects
-    .filter(p => !recent.includes(p))
-    .sort((a, b) => a.localeCompare(b));
+  const all = Array.from(new Set(projects)).filter(Boolean);
+  const recent = getRecentProjects().filter(p => all.includes(p));
+  const others = all.filter(p => !recent.includes(p)).sort((a,b)=>a.localeCompare(b,'pl',{sensitivity:'base'}));
 
   const container = document.getElementById('projects');
   container.innerHTML = '';
 
-  // NAGŁÓWEK + ostatnio używane
-  if (recent.length > 0) {
-    const header = document.createElement('div');
-    header.innerText = "Ostatnio używane:";
-    header.style.gridColumn = "span 7"; // pełen wiersz
-    header.style.fontWeight = "bold";
-    header.style.marginTop = "10px";
-    container.appendChild(header);
-
-    recent.forEach(proj => {
-      const tile = createProjectTile(proj);
-      container.appendChild(tile);
-    });
+  if (recent.length) {
+    container.insertAdjacentHTML('beforeend','<h4 class="group-title">Ostatnio używane:</h4>');
+    renderTileGroup(container, recent, selectProject);
   }
-
-  // Reszta projektów (alfabetycznie)
-  remaining.forEach(proj => {
-    const tile = createProjectTile(proj);
-    container.appendChild(tile);
-  });
+  container.insertAdjacentHTML('beforeend','<h4 class="group-title">Wszystkie projekty:</h4>');
+  renderTileGroup(container, others, selectProject);
 
   addCustomProjectTile();
 }
-
 
 // w resetForm: od razu z cache’u, bez fetcha
 async function resetForm() {
@@ -772,7 +766,7 @@ console.log("Rendertiles", { containerId, items, statusMap });
       div.classList.add(`tile-status-${statusMap[item]}`);
     }
 
-    div.innerHTML = `<span>${item}</span>`;
+    div.innerText = item;
     div.onclick = () => {
       div.classList.add('clicked');
       setTimeout(() => div.classList.remove('clicked'), 200);
@@ -852,15 +846,24 @@ async function saveNewTaskToSheet(category, taskName) {
   }
 }
 
+// 1. Helper do zarządzania "ostatnio używane"
+function getRecentProjects() {
+  try { return JSON.parse(localStorage.getItem('recentProjects')) || []; }
+  catch { return []; }
+}
+function addRecentProject(name) {
+  const recent = getRecentProjects();
+  // usuń jeśli już jest, wrzuć na początek, przytnij do np. 7
+  const idx = recent.indexOf(name);
+  if (idx !== -1) recent.splice(idx,1);
+  recent.unshift(name);
+  localStorage.setItem('recentProjects', JSON.stringify(recent.slice(0,7)));
+}
 
     // ————— Modyfikacja selectProject → wybór kategorii → krok 4 —————
 // po wyborze kategorii:
 function selectProject(project) {
-  // zapamiętaj ostatnio użyte
-  let recent = JSON.parse(localStorage.getItem("recentProjects") || "[]");
-  recent = [project, ...recent.filter(p => p !== project)].slice(0, 7);
-  localStorage.setItem("recentProjects", JSON.stringify(recent));
-
+  addRecentProject(project);
   currentEntry = { project, category: null, subcategory: null, hours: 0 };
   showStep(3);
   // …krok 3→4:
