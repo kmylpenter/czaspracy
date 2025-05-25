@@ -62,24 +62,44 @@
       display: flex;
     }
     .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      gap: 10px;
-      margin: 20px;
-      width: 90%;
-      max-width: 800px;
-    }
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 20px;
+  width: 90%;
+  max-width: 800px;
+  box-sizing: border-box;
+}
+
     .tile {
-      background: #fff;
-      color: #222;
-      padding: 20px;
-      text-align: center;
-      border-radius: 10px;
-      font-size: 1.1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      cursor: pointer;
-      transition: all 0.2s ease-in-out;
-    }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: clamp(0.7rem, 2.5vw, 1.1rem);
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+  #clock, h2, .nav-bar {
+    margin: 10px auto;
+    text-align: center;
+    width: 100%;
+  }
+  h2 {
+    margin-top: 20px;
+    font-size: 1.2rem;
+  }
+  .nav-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+}
+
     .tile:hover {
       background: #f0f0f0;
       transform: scale(1.05);
@@ -406,9 +426,38 @@ async function fetchTasksFromSheet() {
 
 // renderowanie kafelków projektów
 function renderProjects() {
-  renderTiles('projects', projects, selectProject);
+  const recent = JSON.parse(localStorage.getItem("recentProjects") || "[]");
+  const remaining = projects
+    .filter(p => !recent.includes(p))
+    .sort((a, b) => a.localeCompare(b));
+
+  const container = document.getElementById('projects');
+  container.innerHTML = '';
+
+  // NAGŁÓWEK + ostatnio używane
+  if (recent.length > 0) {
+    const header = document.createElement('div');
+    header.innerText = "Ostatnio używane:";
+    header.style.gridColumn = "span 7"; // pełen wiersz
+    header.style.fontWeight = "bold";
+    header.style.marginTop = "10px";
+    container.appendChild(header);
+
+    recent.forEach(proj => {
+      const tile = createProjectTile(proj);
+      container.appendChild(tile);
+    });
+  }
+
+  // Reszta projektów (alfabetycznie)
+  remaining.forEach(proj => {
+    const tile = createProjectTile(proj);
+    container.appendChild(tile);
+  });
+
   addCustomProjectTile();
 }
+
 
 // w resetForm: od razu z cache’u, bez fetcha
 async function resetForm() {
@@ -794,6 +843,11 @@ async function saveNewTaskToSheet(category, taskName) {
     // ————— Modyfikacja selectProject → wybór kategorii → krok 4 —————
 // po wyborze kategorii:
 function selectProject(project) {
+  // zapamiętaj ostatnio użyte
+  let recent = JSON.parse(localStorage.getItem("recentProjects") || "[]");
+  recent = [project, ...recent.filter(p => p !== project)].slice(0, 7);
+  localStorage.setItem("recentProjects", JSON.stringify(recent));
+
   currentEntry = { project, category: null, subcategory: null, hours: 0 };
   showStep(3);
   // …krok 3→4:
