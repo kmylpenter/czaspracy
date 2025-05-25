@@ -684,9 +684,14 @@ async function saveNewItemToSheet(value, sheetName) {
       if (currentStep > 1) showStep(currentStep - 1);
     }
 
+// Zastąp obecną funkcję fetchWorkerStatuses() tym pełnym blokiem:
 async function fetchWorkerStatuses() {
   const statusMap = {};
-  const todayStr = new Date().toISOString().split("T")[0];
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split("T")[0];
 
   // Spróbuj wczytać z cache
   const cached = localStorage.getItem("workerStatusCache");
@@ -694,36 +699,37 @@ async function fetchWorkerStatuses() {
     try {
       const parsed = JSON.parse(cached);
       if (parsed.date === todayStr && parsed.statusMap) {
-        return parsed.statusMap; // 🎉 szybki powrót
+        return parsed.statusMap;
       }
     } catch (e) {
       console.warn("Błąd parsowania cache:", e);
     }
   }
 
-  // Jeśli brak cache lub nieaktualne — pobierz z arkusza
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME_SAVE}!A2:F`,
     });
-
     const entries = res.result.values || [];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
 
     workers.forEach(worker => {
-      const hasToday = entries.some(row =>
-        row[0]?.startsWith(todayStr) && row[1] === worker
-      );
-      const hasYesterday = entries.some(row =>
-        row[0]?.startsWith(yesterdayStr) && row[1] === worker
-      );
+      const hasToday = entries.some(row => {
+        const d = new Date(row[0]);
+        if (isNaN(d)) return false;
+        return d.toISOString().split("T")[0] === todayStr
+               && row[1] === worker;
+      });
+      const hasYesterday = entries.some(row => {
+        const d = new Date(row[0]);
+        if (isNaN(d)) return false;
+        return d.toISOString().split("T")[0] === yesterdayStr
+               && row[1] === worker;
+      });
 
-      if (hasToday) statusMap[worker] = "green";
+      if (hasToday)      statusMap[worker] = "green";
       else if (hasYesterday) statusMap[worker] = "yellow";
-      else statusMap[worker] = "red";
+      else                statusMap[worker] = "red";
     });
 
     // Zapisz do cache
@@ -739,9 +745,6 @@ async function fetchWorkerStatuses() {
 
   return statusMap;
 }
-
-
-
 
     function renderTiles(containerId, items, onClick, statusMap = {}) {
 console.log("Rendertiles", { containerId, items, statusMap });
