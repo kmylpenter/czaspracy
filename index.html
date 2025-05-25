@@ -1045,7 +1045,8 @@ async function handleUpdateTasks() {
           insertDataOption: 'INSERT_ROWS',
           resource: { values }
         });
-        resetForm();
+        resetForm();             // już masz tę linię…
+console.log('— po zapisie: ponowne pobranie statusów —');
 showToast("Dane zostały zapisane!");
       } catch (err) {
         console.error("Błąd zapisu:", err);
