@@ -78,19 +78,27 @@
   justify-items: center;    /* centrowanie kafelka w każdej komórce */
 }
     .tile {
-      background: #fff;
-      color: #222;
-      padding: 20px;
-      text-align: center;
-      display: flex;
-        justify-content: center;
-        align-items: center;
-      border-radius: 10px;
-      font-size: 1.1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      cursor: pointer;
-      transition: all 0.2s ease-in-out;
-    }
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  
+  /* stałe wymiary: dostosuj do swoich potrzeb */
+  width: 120px;
+  height: 80px;
+  
+  /* tekst będzie się łamał wewnątrz kafelka */
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
     .tile:hover {
       background: #f0f0f0;
       transform: scale(1.05);
@@ -973,26 +981,23 @@ async function handleUpdateTasks() {
       }
     }
 
-    async function actuallySubmitData() {
-      try {
-        const values = state.entries.map(e => [
-        formatDateForSheets(new Date()),
-        state.worker, e.project, e.category, e.subcategory, e.hours
-      ]);
-        await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `${SHEET_NAME_SAVE}!A1`,
-          valueInputOption: 'USER_ENTERED',
-          insertDataOption: 'INSERT_ROWS',
-          resource: { values }
-        });
-        resetForm();
+   sync function actuallySubmitData() {
+   try {
+     const values = state.entries.map(...);
+     await gapi.client.sheets.spreadsheets.values.append({
+       /* ... */
+     });
+  resetForm();
+ showToast("Dane zostały zapisane!");
+ // skasuj cache statusów, aby wymusić ponowne pobranie
+ localStorage.removeItem("workerStatusCache");
+ resetForm();
 showToast("Dane zostały zapisane!");
-      } catch (err) {
-        console.error("Błąd zapisu:", err);
-        alert("Nie udało się zapisać danych.");
-      }
-    }
+   } catch (err) {
+     console.error("Błąd zapisu:", err);
+     alert("Nie udało się zapisać danych.");
+   }
+ }
 
 
     // ————— ZAMIENNIK fetchProjectsFromSheet —————
