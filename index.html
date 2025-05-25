@@ -131,6 +131,19 @@
   cursor: pointer;
   transition: all 0.2s ease-in-out;
 }
+/* 3) Upewnij się, że kafelki godzin (w kroku 4) też są białe */
+#hourTiles .tile {
+  background: #fff;
+}
+
+/* 4) Ukryj sekcję godzin zawsze na wejściu do kroku 4 */
+#hourSection {
+  display: none;
+}
+
+#subcategories {
+  background: none !important;
+}
 
     .tile:hover {
       background: #f0f0f0;
@@ -667,15 +680,19 @@ updateClock();
 
     // ————— POMOCNICZE —————
     function showStep(step) {
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      document.getElementById(`step${step}`).classList.add('active');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`step${step}`).classList.add('active');
       const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
       document.getElementById('step-title').innerText = titles[step-1];
       document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
       document.querySelector('.back-button').style.display = (step === 1 ? 'none' : 'inline-block');
       currentStep = step;
-      if (step === 4) renderHourTiles();
-    }
+       if (step === 4) {
+    // zawsze chowamy godzinę, aż użytkownik wybierze zadanie
+    document.getElementById('hourSection').style.display = 'none';
+    renderHourTiles();
+  }
+}
 
 // ————— Zaktualizowany handleAddCustom —————
 function handleAddCustom() {
@@ -697,9 +714,9 @@ function handleAddCustom() {
       list.push(name);
       subcategoriesMap[currentEntry.category] = list;
       renderTiles('subcategories', list, subcat => {
-        currentEntry.subcategory = subcat;
-        document.getElementById('hourSection').style.display = 'block';
-      });
+  currentEntry.subcategory = subcat;
+  document.getElementById('hourSection').style.display = 'block';
+});
       // zamiast tylko nazwy – zapisujemy też kategorię
       saveNewTaskToSheet(currentEntry.category, name);
     }
