@@ -692,10 +692,7 @@ console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
 }, statusMap);
 }
 
-    // Nazwy osób, które widzą timer
-const TIMER_USERS = ["Kamil", "Paweł"];
-
-// Zwraca string daty YYYY-MM-DD
+    // Zwraca string daty YYYY-MM-DD
 function getDayString(offset = 0) {
     const d = new Date();
     d.setDate(d.getDate() + offset);
