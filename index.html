@@ -10,296 +10,304 @@
 
   <style>
 
-.summary-entry.row-timer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 10px 10px;
-    margin: 8px 0;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    font-size: 1.02rem;
-}
-.timer-col.project   { min-width: 80px; font-weight: bold; }
-.timer-col.category  { min-width: 80px; }
-.timer-col.subcategory { min-width: 100px; }
-.timer-col.time      { min-width: 80px; font-family: 'Consolas', monospace; }
-.timer-col.button    { margin-left: auto; }
-@media (max-width: 650px) {
-  .summary-entry.row-timer { flex-wrap: wrap; font-size:0.95rem; gap:8px;}
-  .timer-col.project, .timer-col.category, .timer-col.subcategory, .timer-col.time { min-width:unset;}
+body {
+  font-family: 'Segoe UI', 'Montserrat', Arial, sans-serif;
+  background: linear-gradient(135deg, #e0e7ff 0%, #f6fafd 100%);
+  min-height: 100vh;
+  margin: 0;
+  color: #1a1a1a;
+  /* efekt glass na tło przez półprzezroczysty overlay */
 }
 
-/* tylko na ekranie podsumowania: pomniejsze kafelki godzin */
-#step5 .hour-options .tile {
-  width: 50px;       /* dostosuj szerokość */
-  height: 50px;      /* dostosuj wysokość */
-  padding: 5px;      /* mniej paddingu */
-  font-size: 1rem;   /* mniejsza czcionka */
-  /* opcjonalnie: wyrównanie środka */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.tile.recent {
-  background: #fffbe6;      /* jaśniejszy żółty */
-  border: 2px dashed #ffc107;
-}
-
-/* przywracamy mniejsze kafelki tylko w #hourTiles */
-#hourTiles .tile {
-  width: 50px;      /* dostosuj szerokość */
-  height: 50px;     /* dostosuj wysokość */
-  padding: 5px;     /* mniej paddingu */
-  font-size: 1rem;  /* ewentualnie zmniejsz czcionkę */
-}
-
-/* dzięki temu ogólne .tile (projekty, recent) dalej są 120×80 */
-
-    body::after {
+body::after {
   content: "";
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0; width: 100vw; height: 100vh;
   background: url('https://raw.githubusercontent.com/kmylpenter/czaspracy/main/Finalkmylpenter_3.0_trademark_final.png') no-repeat center center;
   background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
   opacity: 0.03;
   pointer-events: none;
   z-index: 0;
-    }
+}
 
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f9f9f9;
-      color: #222;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h2 {
-      margin: 20px 0 0 0;
-    }
-    /* przycisk edycji w tabeli wpisów */
-    #entries-popup table td > button {
-      padding: 0;
-      margin: 0;
-      line-height: 1;
-      font-size: inherit;      /* dziedziczy rozmiar 0.8rem z tabeli */
-      background: none;
-      border: none;
-      cursor: pointer;
-      vertical-align: middle;
-    }
+.screen,
+.summary-entry,
+.tile,
+.grid,
+.hour-options,
+.summary-entry-container,
+.nav-bar,
+#entries-popup,
+#pending-timers-screen {
+  background: rgba(255, 255, 255, 0.19);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.13);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1.2px solid rgba(255, 255, 255, 0.32);
+}
 
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
 
-    .screen {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-    }
+.active { display: flex; }
 
-    .active {
-      display: flex;
-    }
-    .grid {
-      display: grid;
+/* KAFELKI */
+.tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100px;
+  height: 70px;
+  padding: 10px;
+  margin: 6px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #18325c;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.20);
+  box-shadow: 0 4px 16px 0 rgba(75, 110, 215, 0.13);
+  transition: background 0.16s, transform 0.11s, box-shadow 0.16s;
+}
+
+.tile.selected,
+.tile:active {
+  background: rgba(181, 213, 255, 0.44);
+  box-shadow: 0 2px 16px 0 rgba(31, 118, 200, 0.15);
+  color: #004db3;
+  border: 1.8px solid #7cc9ff;
+}
+
+.tile:hover {
+  transform: translateY(-2px) scale(1.04);
+  background: rgba(255,255,255,0.31);
+  box-shadow: 0 8px 32px 0 rgba(70, 105, 180, 0.18);
+}
+
+/* Kafelki na godzinach */
+#hourTiles .tile,
+#step5 .hour-options .tile {
+  width: 50px;
+  height: 50px;
+  padding: 5px;
+  font-size: 1rem;
+  background: rgba(255,255,255,0.25);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px 0 rgba(60,110,190,0.09);
+}
+
+.tile.recent {
+  background: rgba(255, 250, 220, 0.48);
+  border: 2px dashed #ffd54f;
+}
+
+/* Statusy kafelków */
+.tile-status-green {
+  background: rgba(220, 255, 220, 0.32) !important;
+  border: 2px solid #58d05c !important;
+}
+.tile-status-yellow {
+  background: rgba(255, 243, 205, 0.42) !important;
+  border: 2px solid #ffc107 !important;
+}
+.tile-status-red {
+  background: rgba(255, 215, 220, 0.36) !important;
+  border: 2px solid #ea5455 !important;
+}
+
+.tile-step1 { background: rgba(255,255,255,0.15);}
+.tile-step2 { background: rgba(220,240,255,0.21);}
+.tile-step3 { background: rgba(253,245,230,0.19);}
+.tile-step4 { background: rgba(220,255,230,0.20);}
+
+/* Gridy i układy */
+.grid {
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 10px;
   margin: 20px;
   width: 90%;
   max-width: 800px;
-  justify-content: center;  /* centrowanie całej siatki */
-  justify-items: center;    /* centrowanie kafelka w każdej komórce */
-}
-
-/* w Twoim <style> pod definicją .grid dodaj: */
-
-/* na mobilkach: jedna kolumna, wyśrodkowane kafelki */
-@media (max-width: 400px) {
-  .grid {
-    grid-template-columns: 1fr !important;
-    justify-content: center; /* wyśrodkuj cały kontener */
-    justify-items: center;   /* i pojedyncze kafelki */
-  }
-}
-
-    .tile {
-  display: flex;
-  flex-direction: column;
   justify-content: center;
+  justify-items: center;
+  background: none;
+}
+
+/* Na mobilkach */
+@media (max-width: 400px) {
+  .grid { grid-template-columns: 1fr !important; }
+}
+
+.hour-options {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+  width: 90%;
+  max-width: 800px;
+  background: none;
+}
+
+#hourSection { display: none; }
+
+.summary-entry,
+.summary-entry.row-timer {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  box-shadow: 0 2px 9px 0 rgba(31,38,135,0.09);
+  background: rgba(255,255,255,0.25);
+}
+
+.summary-entry.row-timer {
+  display: flex;
   align-items: center;
-  
-  /* stałe wymiary: dostosuj do swoich potrzeb */
-  width: 100px;
-  height: 70px;
-  
-  /* tekst będzie się łamał wewnątrz kafelka */
-  white-space: normal;
-  word-break: break-word;
-  text-align: center;
-
-  padding: 10px;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-/* 3) Upewnij się, że kafelki godzin (w kroku 4) też są białe */
-#hourTiles .tile {
-  background: #fff;
+  gap: 16px;
+  font-size: 1.02rem;
+  background: rgba(255,255,255,0.32);
+  border-radius: 16px;
+  box-shadow: 0 2px 9px 0 rgba(31,38,135,0.13);
 }
 
-/* 4) Ukryj sekcję godzin zawsze na wejściu do kroku 4 */
-#hourSection {
+.timer-col.project   { min-width: 80px; font-weight: bold; }
+.timer-col.category  { min-width: 80px; }
+.timer-col.subcategory { min-width: 100px; }
+.timer-col.time      { min-width: 80px; font-family: 'Consolas', monospace; }
+.timer-col.button    { margin-left: auto; }
+
+@media (max-width: 650px) {
+  .summary-entry.row-timer { flex-wrap: wrap; font-size:0.96rem; gap:8px;}
+  .timer-col.project, .timer-col.category, .timer-col.subcategory, .timer-col.time { min-width:unset;}
+}
+
+/* Kontener podsumowania */
+.summary-entry-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  justify-content: center;
+  max-width: 800px;
+  margin: 20px auto;
+  background: none;
+}
+
+/* Toast / komunikaty */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.47);
+  color: #18325c;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px 0 rgba(70,110,180,0.13);
+  border: 1.2px solid rgba(255,255,255,0.34);
+  font-size: 1.08rem;
   display: none;
+  z-index: 9999;
+  padding: 12px 30px;
+  backdrop-filter: blur(12px);
 }
 
-#subcategories {
-  background: none !important;
+#toast.error {
+  background: rgba(255,68,68,0.18);
+  color: #b40000;
+  border: 1.2px solid rgba(255,68,68,0.28);
 }
 
-    .tile:hover {
-      background: #f0f0f0;
-      transform: scale(1.05);
-    }
-    .tile.selected {
-      background: #d0e8ff;
-      border: 2px solid #3a84ff;
-    }
-    button {
-      margin: 10px;
-      padding: 10px 20px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      border: none;
-      border-radius: 8px;
-      background: #3a84ff;
-      color: white;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background: #5aa0ff;
-    }
-    .summary-entry {
-      margin: 10px 0;
-      padding: 10px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-   .nav-bar {
+/* Przyciski */
+button, .back-button, #addBtn {
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 500;
+  padding: 12px 28px;
+  background: rgba(255,255,255,0.18);
+  border: 1.2px solid rgba(255,255,255,0.33);
+  color: #18325c;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px 0 rgba(31,38,135,0.08);
+  cursor: pointer;
+  transition: background 0.14s, color 0.11s, box-shadow 0.11s;
+  margin: 6px;
+  outline: none;
+}
+
+button:hover, .back-button:hover, #addBtn:hover {
+  background: rgba(181, 213, 255, 0.32);
+  color: #0250b0;
+  box-shadow: 0 4px 20px 0 rgba(60,108,230,0.13);
+}
+
+/* Dodatkowe — drobne poprawki */
+.remove-btn {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #d80000;
+  cursor: pointer;
+  margin-top: -10px;
+}
+.remove-btn:hover { color: #ff0000; }
+
+h2, h3 {
+  font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #1976d2;
+  margin-top: 18px;
+}
+
+/* Przyciski edycji w popupach */
+#entries-popup table td > button {
+  padding: 0; margin: 0; line-height: 1; font-size: inherit;
+  background: none; border: none; cursor: pointer; vertical-align: middle;
+}
+
+/* Nav-bar */
+.nav-bar {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 10px;
   padding: 10px;
-  position: static;  /* usuwamy absolute */
+  position: static;
   width: 100%;
   box-sizing: border-box;
+  background: rgba(255,255,255,0.15);
+  border-radius: 16px;
+  margin-bottom: 10px;
+}
+.back-button {
+  background: rgba(255,255,255,0.12);
+  color: #333;
+}
+.back-button:hover {
+  background: rgba(181, 213, 255, 0.29);
+  color: #1976d2;
 }
 
-    .back-button {
-      background: #e0e0e0;
-      color: #333;
-    }
-    .back-button:hover {
-      background: #d0d0d0;
-    }
-    .hour-options {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 10px;
-      margin-top: 10px;
-      width: 90%;
-      max-width: 800px;
-    }
-    .summary-entry-container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      justify-content: center;
-      max-width: 800px;
-      margin: 20px auto;
-    }
-    .total-hours {
-      font-size: 2.5rem;
-      font-weight: bold;
-      margin-left: 20px;
-    }
-    .total-hours.red {
-      color: #d80000;
-    }
-    .total-hours.green {
-      color: #006400;
-    }
-    .remove-btn {
-      float: right;
-      background: none;
-      border: none;
-      font-size: 1.2rem;
-      color: #d80000;
-      cursor: pointer;
-      margin-top: -10px;
-    }
-    .remove-btn:hover {
-      color: #ff0000;
-    }
-    
-    .tile-step1 { background: #ffffff; }
-.tile-step2 { background: #e6f7ff; }
-.tile-step3 { background: #fdf5e6; }
-.tile-step4 { background: #e6ffe6; }
-
-.tile.clicked {
-  animation: pop 0.2s ease-out;
+/* Popup-y (pending timers, recent entries) */
+#entries-popup,
+#pending-timers-screen {
+  background: rgba(255,255,255,0.29) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 32px 0 rgba(31,38,135,0.17) !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+  border: 1.8px solid rgba(255,255,255,0.38) !important;
+  padding: 28px 18px !important;
 }
 
-@keyframes pop {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-#toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #28a745;
-  color: white;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-size: 1rem;
-  display: none;
-  z-index: 9999;
-}
-
-#toast.error {
-  background: #d80000;
-}
-
-.tile-status-green {
-  background: #d4edda !important;
-  border: 2px solid #28a745;
-}
-.tile-status-yellow {
-  background: #fff3cd !important;
-  border: 2px solid #ffc107;
-}
-.tile-status-red {
-  background: #f8d7da !important;
-  border: 2px solid #dc3545;
-}
 
     
   </style>
