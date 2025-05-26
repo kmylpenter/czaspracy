@@ -430,7 +430,6 @@ function closePendingTimersScreen() {
   renderProjects();
   updateTimerButtonVisibility();
 }
-
 function saveOldTimerToSheet(worker, dayStr) {
   // Na razie tylko usuwamy dane (mock)
   clearTimerDataForWorker(worker, dayStr);
@@ -990,10 +989,16 @@ console.log("Rendertiles", { containerId, items, statusMap });
   showStep(1);
   renderTiles('workers', workers, worker => {
   state.worker = worker;
+  const oldTimers = loadTimerDataForWorker(worker);
+  if (oldTimers.length > 0) {
+    showPendingTimersScreen(oldTimers, worker);  // <-- już działa
+    return;
+  }
   showStep(2);
   renderProjects();
-  updateTimerButtonVisibility(); // ← dodaj to tutaj!
+  updateTimerButtonVisibility();
 }, statusMap);
+
 
 }
 
