@@ -865,6 +865,10 @@ updateClock();
     let state = { worker: null, entries: [] };
     let currentEntry = null;
     let currentStep = 1;
+    let timerMode = false; // false = normalny, true = timer
+    let timerData = null;  // tutaj będziemy trzymać obecny wpis timera
+    let timerInterval = null; // do odliczania sekund
+
 
     // ————— POMOCNICZE —————
     function showStep(step) {
@@ -1116,8 +1120,27 @@ async function saveNewTaskToSheet(category, taskName) {
 function selectProject(project) {
   updateRecentProjects(project);
   currentEntry = { project, category: null, subcategory: null, hours: 0 };
+
+  // --- NOWE: obsługa trybu timera ---
+  if (timerMode) {
+    // przechodzimy do wyboru kategorii, potem zadania, potem od razu start timera
+    showStep(3);
+    renderTiles('categories', categories, cat => {
+      currentEntry.category = cat;
+      showStep(4);
+      const staticList = subcategoriesMap[cat]||[];
+      const cached = getCachedTasks()[cat]||[];
+      renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
+        currentEntry.subcategory = subcat;
+        // --- START TIMERA ---
+        startTaskTimer(currentEntry);
+      });
+    });
+    return; // NIE kontynuuj starej ścieżki
+  }
+
+  // --- Stary tryb normalny ---
   showStep(3);
-  // …krok 3→4:
   renderTiles('categories', categories, async cat => {
     currentEntry.category = cat;
     showStep(4);
@@ -1130,6 +1153,81 @@ function selectProject(project) {
     });
   });
 }
+
+function stopCurrentTaskTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    if (timerData && timerData.isRunning) {
+        // Dodaj czas do totalSeconds
+        const now = Date.now();
+        timerData.totalSeconds += Math.floor((now - timerData.startTime) / 1000);
+        timerData.isRunning = false;
+    }
+}
+function toggleStartStopTimer() {
+    if (!timerData) return;
+    if (timerData.isRunning) {
+        stopCurrentTaskTimer();
+    } else {
+        // Wznów timer
+        timerData.startTime = Date.now();
+        timerData.isRunning = true;
+        timerInterval = setInterval(renderTimerSummary, 1000);
+    }
+    renderTimerSummary();
+}
+
+
+function renderTimerSummary() {
+    const summary = document.getElementById('summary');
+    summary.innerHTML = '';
+    if (!timerData) return;
+
+    let elapsed = timerData.totalSeconds;
+    if (timerData.isRunning) {
+        elapsed += Math.floor((Date.now() - timerData.startTime) / 1000);
+    }
+    // Formatowanie czasu
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+
+    summary.innerHTML = `
+      <div class="summary-entry">
+        <p><strong>Projekt:</strong> ${timerData.project}<br>
+        <strong>Kategoria:</strong> ${timerData.category}<br>
+        <strong>Zadanie:</strong> ${timerData.subcategory}</p>
+        <p><strong>Czas:</strong> <span id="timer-value">${elapsedStr}</span></p>
+        <button id="startStopBtn" onclick="toggleStartStopTimer()">${timerData.isRunning ? '⏹️ Stop' : '▶️ Start'}</button>
+      </div>
+    `;
+}
+
+
+function startTaskTimer(entry) {
+    // Zatrzymaj poprzedni timer, jeśli był
+    stopCurrentTaskTimer();
+
+    // Inicjuj dane timera
+    timerData = {
+        ...entry,
+        startTime: Date.now(),
+        totalSeconds: 0,
+        isRunning: true
+    };
+
+    // Wyświetl podsumowanie z przyciskiem Start/Stop
+    showStep(5);
+    renderTimerSummary();
+    timerInterval = setInterval(renderTimerSummary, 1000); // aktualizuj co sekundę
+
+    // Ukryj przycisk "Dodaj kolejny projekt" w trybie timera
+    document.querySelector('button[onclick="addAnotherProject()"]').style.display = 'none';
+}
+
 
 // obsługa przycisku
 async function handleUpdateTasks() {
@@ -1369,11 +1467,19 @@ function updateTimerButtonVisibility() {
 function handleTimerToggle() {
     if (!state.worker || !TIMER_USERS.includes(state.worker)) return;
     let timerState = getTimerState(state.worker);
-    if (timerState === "off") timerState = "on";
-    else if (timerState === "on") timerState = "off";
+    if (timerState === "off") {
+        timerState = "on";
+        timerMode = true;
+        showToast("Tryb timera WŁĄCZONY");
+    } else if (timerState === "on") {
+        timerState = "off";
+        timerMode = false;
+        showToast("Tryb timera WYŁĄCZONY");
+    }
     saveTimerState(state.worker, timerState);
     updateTimerButtonVisibility();
 }
+
 
 
 
