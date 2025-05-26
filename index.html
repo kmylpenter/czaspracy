@@ -174,11 +174,17 @@
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    .nav-bar {
-      position: absolute;
-      left: 10px;
-      top: 10px;
-    }
+   .nav-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  position: static;  /* usuwamy absolute */
+  width: 100%;
+  box-sizing: border-box;
+}
+
     .back-button {
       background: #e0e0e0;
       color: #333;
@@ -282,8 +288,10 @@
   <div class="nav-bar" id="backButtonContainer">
   <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
   <button id="addBtn" class="back-button" style="margin-left: 10px;" onclick="handleAddCustom()">➕ Dodaj</button>
-  <button class="back-button" style="float:right;" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
+  <button class="back-button" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
+  <button id="timerBtn" class="back-button" style="display:none;">⏱ Timer</button>
 </div>
+
 
   <h2 id="step-title">Jak masz na imię?</h2>
 
@@ -334,6 +342,16 @@
   </div>
 
   <script>
+function updateTimerButtonVisibility() {
+  const timerBtn = document.getElementById('timerBtn');
+  if (state.worker === 'Kamil' || state.worker === 'Paweł') {
+    timerBtn.style.display = 'inline-block';
+  } else {
+    timerBtn.style.display = 'none';
+  }
+}
+
+
 // ————— ZAMIENNIK showRecentEntries —————
 async function showRecentEntries() {
   try {
@@ -692,6 +710,7 @@ updateClock();
     document.getElementById('hourSection').style.display = 'none';
     renderHourTiles();
   }
+updateTimerButtonVisibility(); // ← dodaj to tutaj!
 }
 
 // ————— Zaktualizowany handleAddCustom —————
@@ -864,11 +883,12 @@ console.log("Rendertiles", { containerId, items, statusMap });
   const statusMap = await fetchWorkerStatuses();
   showStep(1);
   renderTiles('workers', workers, worker => {
-    state.worker = worker;
-    showStep(2);
-    renderProjects();
+  state.worker = worker;
+  showStep(2);
+  renderProjects();
+  updateTimerButtonVisibility(); // ← dodaj to tutaj!
+}, statusMap);
 
-  }, statusMap);
 }
 
     // ————— DYNAMICZNE TILES —————
