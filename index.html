@@ -877,7 +877,9 @@ updateClock();
       const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
       document.getElementById('step-title').innerText = titles[step-1];
       document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
-      document.querySelector('.back-button').style.display = (step === 1 ? 'none' : 'inline-block');
+      document.querySelector('.back-button').style.display =
+    (step === 1 || (step === 5 && timerMode)) ? 'none' : 'inline-block';
+
       currentStep = step;
        if (step === 4) {
     // zawsze chowamy godzinę, aż użytkownik wybierze zadanie
@@ -1225,6 +1227,11 @@ function renderTimerSummary() {
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
     const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+    const addBtn = document.querySelector('button[onclick="addAnotherProject()"]');
+    if (addBtn) {
+      addBtn.style.display = (!timerData.isRunning ? 'inline-block' : 'none');
+}
+
 
     summary.innerHTML = `
       <div class="summary-entry">
