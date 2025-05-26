@@ -1230,11 +1230,16 @@ function renderTimerSummary() {
 
     // --- POPRAWKA: obsługa widoczności przycisku ---
     const addBtn = document.querySelector('button[onclick="addAnotherProject()"]');
-    if (addBtn) {
-        // Sprawdzamy, czy WSZYSTKIE sesje są zatrzymane
-        const allPaused = (data.sessions || []).every(s => !s.isRunning);
-        addBtn.style.display = allPaused ? 'inline-block' : 'none';
-    }
+if (addBtn) {
+    const dateStr = getDayString();
+    const data = getFullTimerData(state.worker, dateStr);
+    // Przycisk ma być widoczny, gdy ostatnia sesja NIE jest aktywna (czyli pauza)
+    // lub nie ma żadnej aktywnej sesji
+    const lastSession = (data.sessions && data.sessions.length) ? data.sessions[data.sessions.length-1] : null;
+    const canAdd = !lastSession || !lastSession.isRunning;
+    addBtn.style.display = canAdd ? 'inline-block' : 'none';
+}
+
 
     summary.innerHTML = `
       <div class="summary-entry">
