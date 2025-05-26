@@ -289,7 +289,7 @@
   <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
   <button id="addBtn" class="back-button" style="margin-left: 10px;" onclick="handleAddCustom()">➕ Dodaj</button>
   <button class="back-button" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
-    <button id="timer-toggle-btn" onclick="handleTimerToggle()" style="display:none;margin-left:10px;">⏱ Timer</button>
+  <button id="timer-toggle-btn" onclick="handleTimerToggle()" style="display:none; margin-left:10px;">⏱ Timer</button>
 
 </div>
 
@@ -676,6 +676,7 @@ async function resetForm() {
   const statusMap = await fetchWorkerStatuses();
   showStep(1);
  renderTiles('workers', workers, worker => {
+updateTimerButtonVisibility();
   state.worker = worker;
 console.log("Kliknięto pracownika:", worker);
 console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
@@ -687,7 +688,7 @@ console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
   }
   showStep(2);
   renderProjects();
-  updateTimerButtonVisibility();
+  
 }, statusMap);
 }
 
@@ -1317,6 +1318,67 @@ function formatDateForSheets(date) {
   const pad = n => n.toString().padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
+
+const TIMER_USERS = ["Kamil", "Paweł"];
+
+function getDayString(offset = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split('T')[0];
+}
+
+function loadTimerDataForWorker(worker) {
+    const result = [];
+    for (let offset = 0; offset > -3; offset--) {
+        const dayStr = getDayString(offset);
+        const key = `timerData_${worker}_${dayStr}`;
+        const data = JSON.parse(localStorage.getItem(key) || "null");
+        if (data) result.push({ dayStr, data });
+    }
+    return result;
+}
+
+function saveTimerState(worker, state) {
+    const dayStr = getDayString();
+    const key = `timerData_${worker}_${dayStr}`;
+    let data = JSON.parse(localStorage.getItem(key) || "{}");
+    data.timerState = state;
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+function getTimerState(worker) {
+    const dayStr = getDayString();
+    const key = `timerData_${worker}_${dayStr}`;
+    let data = JSON.parse(localStorage.getItem(key) || "{}");
+    return data.timerState || "off";
+}
+
+function updateTimerButtonVisibility() {
+    const btn = document.getElementById('timer-toggle-btn');
+    if (!state.worker || !TIMER_USERS.includes(state.worker)) {
+        btn.style.display = 'none';
+        return;
+    }
+    btn.style.display = 'inline-block';
+
+    const timerState = getTimerState(state.worker);
+    btn.textContent = (timerState === 'on' ? "⏱ Timer: ON" :
+                      timerState === 'off' ? "⏱ Timer: OFF" :
+                      "⏱ Timer: NIESPIĘTY");
+    btn.style.background = timerState === 'on' ? "#28a745" : 
+                          timerState === 'off' ? "#d80000" : "#ffc107";
+    btn.style.color = (timerState === 'on' || timerState === 'off') ? "#fff" : "#222";
+}
+
+function handleTimerToggle() {
+    if (!state.worker || !TIMER_USERS.includes(state.worker)) return;
+    let timerState = getTimerState(state.worker);
+    if (timerState === "off") timerState = "on";
+    else if (timerState === "on") timerState = "off";
+    saveTimerState(state.worker, timerState);
+    updateTimerButtonVisibility();
+}
+
 
 
     // ————— START ————
