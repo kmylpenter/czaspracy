@@ -1205,40 +1205,101 @@ function renderTimerSummary() {
 
     const dateStr = getDayString();
     let data = getFullTimerData(state.worker, dateStr);
-    let session = data.sessions && data.sessions.length ? data.sessions[data.sessions.length - 1] : null;
-    if (!session) {
-        summary.innerHTML = "<p>Brak aktywnej sesji.</p>";
+
+    // Jeśli nie ma sesji
+    if (!data.sessions || data.sessions.length === 0) {
+        summary.innerHTML = "<p>Brak aktywnych zadań. Dodaj projekt!</p>";
         return;
     }
 
-    let elapsed = session.duration || 0;
-    if (session.isRunning) {
-        elapsed += Math.floor((Date.now() - session.startTime) / 1000);
-        // URUCHOM licznik jeśli nie jest ustawiony!
+    // Wyświetl każdą sesję w osobnym boxie
+    data.sessions.forEach((session, idx) => {
+        let elapsed = session.duration || 0;
+        if (session.isRunning) {
+            elapsed += Math.floor((Date.now() - session.startTime) / 1000);
+        }
+        const h = Math.floor(elapsed / 3600);
+        const m = Math.floor((elapsed % 3600) / 60);
+        const s = elapsed % 60;
+        const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+
+        let btn = '';
+        if (session.isRunning) {
+            btn = `<button onclick="pauseTimerSession(${idx})">⏹️ Stop</button>`;
+        } else {
+            btn = `<button onclick="resumeTimerSession(${idx})">▶️ Wznów</button>`;
+        }
+
+        summary.innerHTML += `
+            <div class="summary-entry">
+                <p><strong>Projekt:</strong> ${session.project}<br>
+                   <strong>Kategoria:</strong> ${session.category}<br>
+                   <strong>Zadanie:</strong> ${session.subcategory}</p>
+                <p><strong>Czas:</strong> <span id="timer-value-${idx}">${elapsedStr}</span></p>
+                ${btn}
+            </div>
+        `;
+    });
+
+    // Ukryj/pokaż "Dodaj kolejny projekt" jeśli żadna sesja nie jest aktywna
+    const addBtn = document.querySelector('button[onclick="addAnotherProject()"]');
+    if (addBtn) {
+        const anyActive = data.sessions.some(s => s.isRunning);
+        addBtn.style.display = anyActive ? 'none' : 'inline-block';
+    }
+
+    // Odśwież zegarki na żywo tylko dla aktywnych sesji
+    if (data.sessions.some(s => s.isRunning)) {
         if (!timerInterval) {
             timerInterval = setInterval(renderTimerSummary, 1000);
         }
-    } else {
+    } else if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
     }
-
-    const h = Math.floor(elapsed / 3600);
-    const m = Math.floor((elapsed % 3600) / 60);
-    const s = elapsed % 60;
-    const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
-
-    // --- POPRAWKA: obsługa widoczności przycisku ---
-    const addBtn = document.querySelector('button[onclick="addAnotherProject()"]');
-if (addBtn) {
-    const dateStr = getDayString();
-    const data = getFullTimerData(state.worker, dateStr);
-    // Przycisk ma być widoczny, gdy ostatnia sesja NIE jest aktywna (czyli pauza)
-    // lub nie ma żadnej aktywnej sesji
-    const lastSession = (data.sessions && data.sessions.length) ? data.sessions[data.sessions.length-1] : null;
-    const canAdd = !lastSession || !lastSession.isRunning;
-    addBtn.style.display = canAdd ? 'inline-block' : 'none';
 }
+
+function pauseTimerSession(idx) {
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+    let session = data.sessions[idx];
+    if (!session || !session.isRunning) return;
+
+    // Zakończ czas dla tej sesji
+    session.endTime = Date.now();
+    session.isRunning = false;
+    session.duration += Math.floor((session.endTime - session.startTime) / 1000);
+
+    setFullTimerData(state.worker, dateStr, data);
+    renderTimerSummary();
+    updateTimerButtonVisibility();
+}
+
+function resumeTimerSession(idx) {
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+
+    // Najpierw zatrzymaj każdą inną aktywną sesję (żeby zawsze była tylko jedna aktywna)
+    data.sessions.forEach((s, i) => {
+        if (s.isRunning) {
+            s.endTime = Date.now();
+            s.isRunning = false;
+            s.duration += Math.floor((s.endTime - s.startTime) / 1000);
+        }
+    });
+
+    // Wznów wskazaną sesję
+    let session = data.sessions[idx];
+    if (!session || session.isRunning) return;
+    session.startTime = Date.now();
+    session.isRunning = true;
+
+    setFullTimerData(state.worker, dateStr, data);
+    renderTimerSummary();
+    updateTimerButtonVisibility();
+}
+
+
 
 
     summary.innerHTML = `
