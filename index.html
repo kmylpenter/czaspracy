@@ -398,6 +398,57 @@ function clearTimerDataForWorker(worker, dateString) {
   localStorage.removeItem(getTimerStorageKey(worker, dateString));
 }
 
+function showPendingTimersScreen(oldTimers, worker) {
+  // Ukrywamy wszystkie ekrany
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // Jeśli nie masz jeszcze osobnego ekranu, zrób tymczasowy popup:
+  let html = `<div id="pending-timers-screen" style="
+      position:fixed; top:10%; left:50%; transform:translateX(-50%);
+      background:white; padding:30px; box-shadow:0 0 12px rgba(0,0,0,.20);
+      max-width:350px; z-index:9999; border-radius:15px;">
+      <h3>Masz niezapisane pomiary czasu z poprzednich dni:</h3>
+      <ul style="padding-left:18px;">`;
+  oldTimers.forEach(({dayStr, data}) => {
+    html += `<li style="margin-bottom: 10px;">
+      <b>${dayStr}</b> — <button onclick="saveOldTimerToSheet('${worker}','${dayStr}')">Zapisz</button>
+      <br>
+      <span style="font-size:0.95em; color:#666;">(Ilość wpisów: ${data.entries ? data.entries.length : 0})</span>
+    </li>`;
+  });
+  html += `</ul>
+      <button onclick="closePendingTimersScreen()" style="margin-top:12px;">Pomiń</button>
+    </div>`;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+
+function closePendingTimersScreen() {
+  const el = document.getElementById('pending-timers-screen');
+  if (el) el.remove();
+  showStep(2);
+  renderProjects();
+  updateTimerButtonVisibility();
+}
+
+function saveOldTimerToSheet(worker, dayStr) {
+  // Na razie tylko usuwamy dane (mock)
+  clearTimerDataForWorker(worker, dayStr);
+  // Usuwamy z ekranu zapisany wpis
+  const el = document.getElementById('pending-timers-screen');
+  if (el) el.remove();
+  // Sprawdzamy, czy są jeszcze jakieś zaległe
+  const oldTimers = loadTimerDataForWorker(worker);
+  if (oldTimers.length > 0) {
+    showPendingTimersScreen(oldTimers, worker);
+  } else {
+    showStep(2);
+    renderProjects();
+    updateTimerButtonVisibility();
+  }
+  showToast("Zapisano (symulacja)");
+}
+
 
 // ————— ZAMIENNIK showRecentEntries —————
 async function showRecentEntries() {
@@ -603,19 +654,16 @@ async function resetForm() {
   showStep(1);
  renderTiles('workers', workers, worker => {
   state.worker = worker;
-  // Nowość! — sprawdzamy, czy są niezapisane timery
   const oldTimers = loadTimerDataForWorker(worker);
   if (oldTimers.length > 0) {
-    // Tylko na test: wypisz je w konsoli
-    console.log("Masz niezapisane czasy z ostatnich dni:", oldTimers);
-    // Tu docelowo wprowadzimy ekran do zapisu zaległych timerów
-    // Na razie możesz normalnie iść dalej:
-    // showPendingTimersScreen(oldTimers, worker);  <-- dodamy później!
+    showPendingTimersScreen(oldTimers, worker);  // <-- już działa
+    return;
   }
   showStep(2);
   renderProjects();
   updateTimerButtonVisibility();
 }, statusMap);
+
 
 }
 
