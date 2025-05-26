@@ -9,6 +9,29 @@
 
 
   <style>
+
+.summary-entry.row-timer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 10px;
+    margin: 8px 0;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    font-size: 1.02rem;
+}
+.timer-col.project   { min-width: 80px; font-weight: bold; }
+.timer-col.category  { min-width: 80px; }
+.timer-col.subcategory { min-width: 100px; }
+.timer-col.time      { min-width: 80px; font-family: 'Consolas', monospace; }
+.timer-col.button    { margin-left: auto; }
+@media (max-width: 650px) {
+  .summary-entry.row-timer { flex-wrap: wrap; font-size:0.95rem; gap:8px;}
+  .timer-col.project, .timer-col.category, .timer-col.subcategory, .timer-col.time { min-width:unset;}
+}
+
 /* tylko na ekranie podsumowania: pomniejsze kafelki godzin */
 #step5 .hour-options .tile {
   width: 50px;       /* dostosuj szerokość */
@@ -1231,14 +1254,15 @@ function renderTimerSummary() {
         }
 
         summary.innerHTML += `
-            <div class="summary-entry">
-                <p><strong>Projekt:</strong> ${session.project}<br>
-                   <strong>Kategoria:</strong> ${session.category}<br>
-                   <strong>Zadanie:</strong> ${session.subcategory}</p>
-                <p><strong>Czas:</strong> <span id="timer-value-${idx}">${elapsedStr}</span></p>
-                ${btn}
-            </div>
-        `;
+    <div class="summary-entry row-timer">
+        <span class="timer-col project"><b>${session.project}</b></span>
+        <span class="timer-col category">${session.category}</span>
+        <span class="timer-col subcategory">${session.subcategory}</span>
+        <span class="timer-col time" id="timer-value-${idx}">${elapsedStr}</span>
+        <span class="timer-col button">${btn}</span>
+    </div>
+`;
+
     });
 
     // Ukryj/pokaż "Dodaj kolejny projekt" jeśli żadna sesja nie jest aktywna
@@ -1459,34 +1483,36 @@ async function handleUpdateTasks() {
     let values = [];
     // — normalne wpisy (nie-timerowe)
     if (state.entries && state.entries.length) {
-        values = state.entries.map(e => [
-            formatDateForSheets(new Date()),
-            state.worker,
-            e.project,
-            e.category,
-            e.subcategory,
-            e.hours
-        ]);
-    }
+    values = state.entries.map(e => [
+        formatDateForSheets(new Date()),
+        state.worker,
+        e.project,
+        e.category,
+        e.subcategory,
+        (typeof e.hours === "number") ? e.hours * 3600 : 0 // zamień na sekundy
+    ]);
+}
+
 
     // — wpisy z timera:
-    const dateStr = getDayString();
-    let data = getFullTimerData(state.worker, dateStr);
-    if (data.sessions && data.sessions.length) {
-        data.sessions.forEach(s => {
-            // sumuj czas dla (projekt+kat+zadanie), grupuj jeśli było kilka sesji tego samego
-            values.push([
-                formatDateForSheets(new Date(s.startTime)),
-                state.worker,
-                s.project,
-                s.category,
-                s.subcategory,
-                Math.floor((s.duration || 0)/3600 * 100) / 100 // lub: Math.round((s.duration||0)/3600*100)/100 — godziny z dokładnością do setnych
-            ]);
-        });
-        // Po wysłaniu wyczyść localStorage
-        localStorage.removeItem(getTimerStorageKey(state.worker, dateStr));
-    }
+    // — wpisy z timera:
+const dateStr = getDayString();
+let data = getFullTimerData(state.worker, dateStr);
+if (data.sessions && data.sessions.length) {
+    data.sessions.forEach(s => {
+        values.push([
+            formatDateForSheets(new Date(s.startTime)),
+            state.worker,
+            s.project,
+            s.category,
+            s.subcategory,
+            Math.floor(s.duration || 0) // SECONDS
+        ]);
+    });
+    // Po wysłaniu wyczyść localStorage
+    localStorage.removeItem(getTimerStorageKey(state.worker, dateStr));
+}
+
 
     if (!values.length) {
       showToast("Brak danych do zapisania!", true);
