@@ -1169,23 +1169,22 @@ function stopCurrentTaskTimer() {
 function toggleStartStopTimer() {
     const dateStr = getDayString();
     let data = getFullTimerData(state.worker, dateStr);
-    let session = data.sessions ? data.sessions.find(s => s.isRunning) : null;
 
-    if (session && session.isRunning) {
-        // Stop
+    // Znajdź ostatnią sesję (powinna być tylko jedna z isRunning==true lub żadna)
+    let session = data.sessions && data.sessions.length ? data.sessions[data.sessions.length - 1] : null;
+    if (!session) return;
+
+    if (session.isRunning) {
+        // STOP – wstrzymujemy licznik
         session.endTime = Date.now();
         session.isRunning = false;
         session.duration += Math.floor((session.endTime - session.startTime) / 1000);
-        setFullTimerData(state.worker, dateStr, data);
         clearInterval(timerInterval);
+        setFullTimerData(state.worker, dateStr, data);
     } else {
-        // Wznów ostatnią sesję (lub zacznij nową)
-        if (session) {
-            session.startTime = Date.now();
-            session.isRunning = true;
-        } else {
-            // brak aktywnej sesji — nie rób nic lub możesz dodać nową?
-        }
+        // START – wznawiamy licznik
+        session.startTime = Date.now();
+        session.isRunning = true;
         setFullTimerData(state.worker, dateStr, data);
         timerInterval = setInterval(renderTimerSummary, 1000);
     }
@@ -1195,25 +1194,33 @@ function toggleStartStopTimer() {
 
 
 
+
 function renderTimerSummary() {
     const summary = document.getElementById('summary');
     summary.innerHTML = '';
 
-    // Pobierz najnowsze dane z localStorage (by np. ktoś wyłączył/odświeżył)
     const dateStr = getDayString();
     let data = getFullTimerData(state.worker, dateStr);
-    let session = data.sessions ? data.sessions.find(s => s.isRunning) : null;
-    if (!session) session = timerData;
-
+    let session = data.sessions && data.sessions.length ? data.sessions[data.sessions.length - 1] : null;
     if (!session) {
         summary.innerHTML = "<p>Brak aktywnej sesji.</p>";
         return;
     }
 
     let elapsed = session.duration || 0;
-    if (session.isRunning) elapsed += Math.floor((Date.now() - session.startTime) / 1000);
+    if (session.isRunning) {
+        elapsed += Math.floor((Date.now() - session.startTime) / 1000);
 
-    // Formatowanie czasu
+        // URUCHOM licznik jeśli nie jest ustawiony!
+        if (!timerInterval) {
+            timerInterval = setInterval(renderTimerSummary, 1000);
+        }
+    } else {
+        // PAUZA – licznik nie leci, nie ustawiamy timerInterval
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
@@ -1229,6 +1236,7 @@ function renderTimerSummary() {
       </div>
     `;
 }
+
 
 
 
@@ -1356,19 +1364,20 @@ async function handleUpdateTasks() {
       state.entries[idx].hours = val;
       renderSummary();
     }
-    function addAnotherProject() {
-    // Blokujemy w trybie timera z aktywną sesją
+    function addAnotherProject(){
     if (timerMode) {
         const dateStr = getDayString();
         let data = getFullTimerData(state.worker, dateStr);
+        // Jeśli JAKIKOLWIEK timer jest isRunning – blokujemy dodanie nowego zadania
         if (data.sessions && data.sessions.some(s => s.isRunning)) {
-            showToast("Najpierw zakończ/zatrzymaj bieżący pomiar!", true);
+            showToast("Najpierw zatrzymaj aktualny pomiar (STOP)", true);
             return;
         }
     }
     showStep(2);
     renderProjects();
 }
+
 
 
     // ————— ZAPIS DO SHEETS —————
