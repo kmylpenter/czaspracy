@@ -1299,9 +1299,6 @@ function resumeTimerSession(idx) {
     updateTimerButtonVisibility();
 }
 
-
-
-
     summary.innerHTML = `
       <div class="summary-entry">
         <p><strong>Projekt:</strong> ${session.project}<br>
@@ -1311,7 +1308,6 @@ function resumeTimerSession(idx) {
         <button id="startStopBtn" onclick="toggleStartStopTimer()">${session.isRunning ? '⏹️ Stop' : '▶️ Start'}</button>
       </div>
     `;
-}
 
 function startTaskTimer(entry) {
     stopCurrentTaskTimer(); // zamknij, jeśli coś już było
