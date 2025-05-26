@@ -289,7 +289,8 @@
   <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
   <button id="addBtn" class="back-button" style="margin-left: 10px;" onclick="handleAddCustom()">➕ Dodaj</button>
   <button class="back-button" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
-  <button id="timerBtn" class="back-button" style="display:none;">⏱ Timer</button>
+    <button id="timer-toggle-btn" onclick="handleTimerToggle()" style="display:none;margin-left:10px;">⏱ Timer</button>
+
 </div>
 
 
@@ -299,6 +300,7 @@
     <div class="grid" id="workers"></div>
   </div>
 <div class="screen" id="step2">
+
   <button onclick="fetchProjectsFromSheet()">🔄 Aktualizuj projekty</button>
 
   <!-- Sekcja ostatnio używane -->
@@ -342,14 +344,36 @@
   </div>
 
   <script>
+// Wstaw do funkcji updateTimerButtonVisibility:
 function updateTimerButtonVisibility() {
-  const timerBtn = document.getElementById('timerBtn');
-  if (state.worker === 'Kamil' || state.worker === 'Paweł') {
-    timerBtn.style.display = 'inline-block';
-  } else {
-    timerBtn.style.display = 'none';
-  }
+    const btn = document.getElementById('timer-toggle-btn');
+    if (!state.worker || !TIMER_USERS.includes(state.worker)) {
+        btn.style.display = 'none';
+        return;
+    }
+    btn.style.display = 'inline-block';
+
+    // Wyznacz kolor wg stanu timera
+    const timerState = getTimerState(state.worker);
+    btn.textContent = (timerState === 'on' ? "⏱ Timer: ON" :
+                      timerState === 'off' ? "⏱ Timer: OFF" :
+                      "⏱ Timer: NIESPIĘTY");
+    btn.style.background = timerState === 'on' ? "#28a745" : 
+                          timerState === 'off' ? "#d80000" : "#ffc107";
+    btn.style.color = (timerState === 'on' || timerState === 'off') ? "#fff" : "#222";
 }
+
+// Funkcja przełączająca timer po kliknięciu
+function handleTimerToggle() {
+    if (!state.worker || !TIMER_USERS.includes(state.worker)) return;
+    let timerState = getTimerState(state.worker);
+    if (timerState === "off") timerState = "on";
+    else if (timerState === "on") timerState = "off";
+    // inProgress ustawiamy tylko w późniejszych krokach
+    saveTimerState(state.worker, timerState);
+    updateTimerButtonVisibility();
+}
+
 
 // ———– KONFIGURACJA TIMERA ————
 const TIMER_STORAGE_PREFIX = "timerData_";
@@ -665,9 +689,47 @@ console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
   renderProjects();
   updateTimerButtonVisibility();
 }, statusMap);
-
-
 }
+
+    // Nazwy osób, które widzą timer
+const TIMER_USERS = ["Kamil", "Paweł"];
+
+// Zwraca string daty YYYY-MM-DD
+function getDayString(offset = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split('T')[0];
+}
+
+// Zwraca listę {dayStr, data} z localStorage z 3 dni wstecz
+function loadTimerDataForWorker(worker) {
+    const result = [];
+    for (let offset = 0; offset > -3; offset--) {
+        const dayStr = getDayString(offset);
+        const key = `timerData_${worker}_${dayStr}`;
+        const data = JSON.parse(localStorage.getItem(key) || "null");
+        if (data) result.push({ dayStr, data });
+    }
+    return result;
+}
+
+// Zapisz stan timera (np. "on" lub "off") dla aktualnego pracownika i dnia
+function saveTimerState(worker, state) {
+    const dayStr = getDayString();
+    const key = `timerData_${worker}_${dayStr}`;
+    let data = JSON.parse(localStorage.getItem(key) || "{}");
+    data.timerState = state;
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+// Odczytaj stan timera (on/off/inProgress)
+function getTimerState(worker) {
+    const dayStr = getDayString();
+    const key = `timerData_${worker}_${dayStr}`;
+    let data = JSON.parse(localStorage.getItem(key) || "{}");
+    return data.timerState || "off";
+}
+
 
 
 async function editEntry(rowIndex) {
@@ -699,6 +761,8 @@ async function editEntry(rowIndex) {
     document.getElementById('entries-popup').remove();
     showRecentEntries();
   }
+
+
 
   // 4) Jeśli mamy już OAuth-owy token — idziemy od razu, inaczej prosimy o dostęp
   const tok = gapi.client.getToken();
@@ -945,6 +1009,7 @@ console.log("Rendertiles", { containerId, items, statusMap });
   const stepClass = {
     1: 'tile-step1',
     2: 'tile-step2',
+    updateTimerButtonVisibility();
     3: 'tile-step3',
     4: 'tile-step4'
   }[step] || 'tile';
