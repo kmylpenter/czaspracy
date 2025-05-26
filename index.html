@@ -653,6 +653,9 @@ async function resetForm() {
   showStep(1);
  renderTiles('workers', workers, worker => {
   state.worker = worker;
+console.log("Kliknięto pracownika:", worker);
+console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
+
   const oldTimers = loadTimerDataForWorker(worker);
   if (oldTimers.length > 0) {
     showPendingTimersScreen(oldTimers, worker);  // <-- już działa
@@ -989,6 +992,9 @@ console.log("Rendertiles", { containerId, items, statusMap });
   showStep(1);
   renderTiles('workers', workers, worker => {
   state.worker = worker;
+console.log("Kliknięto pracownika:", worker);
+console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
+
   const oldTimers = loadTimerDataForWorker(worker);
   if (oldTimers.length > 0) {
     showPendingTimersScreen(oldTimers, worker);  // <-- już działa
