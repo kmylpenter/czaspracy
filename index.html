@@ -1252,23 +1252,6 @@ if (addBtn) {
     `;
 }
 
-
-
-
-    summary.innerHTML = `
-      <div class="summary-entry">
-        <p><strong>Projekt:</strong> ${session.project}<br>
-        <strong>Kategoria:</strong> ${session.category}<br>
-        <strong>Zadanie:</strong> ${session.subcategory}</p>
-        <p><strong>Czas:</strong> <span id="timer-value">${elapsedStr}</span></p>
-        <button id="startStopBtn" onclick="toggleStartStopTimer()">${session.isRunning ? '⏹️ Stop' : '▶️ Start'}</button>
-      </div>
-    `;
-}
-
-
-
-
 function startTaskTimer(entry) {
     stopCurrentTaskTimer(); // zamknij, jeśli coś już było
 
