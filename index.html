@@ -351,52 +351,7 @@ function updateTimerButtonVisibility() {
   }
 }
 
-// ———– KONFIGURACJA TIMERA ————
-const TIMER_STORAGE_PREFIX = "timerData_";
-const TIMER_DAYS_BACK = 3;
 
-// Zwraca datę w formacie YYYY-MM-DD
-function getDayString(offsetDays = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() - offsetDays);
-  return d.toISOString().split('T')[0];
-}
-
-// Generuje klucz do localStorage dla danego użytkownika i daty
-function getTimerStorageKey(worker, dateString) {
-  return `${TIMER_STORAGE_PREFIX}${worker}_${dateString}`;
-}
-
-// Odczytaj dane z localStorage dla użytkownika z ostatnich 3 dni
-function loadTimerDataForWorker(worker) {
-  const results = [];
-  for (let i = 0; i < TIMER_DAYS_BACK; i++) {
-    const dayStr = getDayString(i);
-    const key = getTimerStorageKey(worker, dayStr);
-    const dataStr = localStorage.getItem(key);
-    if (dataStr) {
-      try {
-        const data = JSON.parse(dataStr);
-        results.push({ dayStr, data });
-      } catch(e) {
-        // Jeśli coś jest nie tak – usuń z localStorage
-        localStorage.removeItem(key);
-      }
-    }
-  }
-  return results;
-}
-
-// Zapisuje dane timera dla użytkownika i danego dnia
-function saveTimerDataForWorker(worker, dateString, timerData) {
-  const key = getTimerStorageKey(worker, dateString);
-  localStorage.setItem(key, JSON.stringify(timerData));
-}
-
-// Usuwa dane timera po zapisaniu do arkusza
-function clearTimerDataForWorker(worker, dateString) {
-  localStorage.removeItem(getTimerStorageKey(worker, dateString));
-}
 
 
 // ————— ZAMIENNIK showRecentEntries —————
@@ -1199,6 +1154,52 @@ function formatDateForSheets(date) {
   return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
+// ———– KONFIGURACJA TIMERA ————
+const TIMER_STORAGE_PREFIX = "timerData_";
+const TIMER_DAYS_BACK = 3;
+
+// Zwraca datę w formacie YYYY-MM-DD
+function getDayString(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() - offsetDays);
+  return d.toISOString().split('T')[0];
+}
+
+// Generuje klucz do localStorage dla danego użytkownika i daty
+function getTimerStorageKey(worker, dateString) {
+  return `${TIMER_STORAGE_PREFIX}${worker}_${dateString}`;
+}
+
+// Odczytaj dane z localStorage dla użytkownika z ostatnich 3 dni
+function loadTimerDataForWorker(worker) {
+  const results = [];
+  for (let i = 0; i < TIMER_DAYS_BACK; i++) {
+    const dayStr = getDayString(i);
+    const key = getTimerStorageKey(worker, dayStr);
+    const dataStr = localStorage.getItem(key);
+    if (dataStr) {
+      try {
+        const data = JSON.parse(dataStr);
+        results.push({ dayStr, data });
+      } catch(e) {
+        // Jeśli coś jest nie tak – usuń z localStorage
+        localStorage.removeItem(key);
+      }
+    }
+  }
+  return results;
+}
+
+// Zapisuje dane timera dla użytkownika i danego dnia
+function saveTimerDataForWorker(worker, dateString, timerData) {
+  const key = getTimerStorageKey(worker, dateString);
+  localStorage.setItem(key, JSON.stringify(timerData));
+}
+
+// Usuwa dane timera po zapisaniu do arkusza
+function clearTimerDataForWorker(worker, dateString) {
+  localStorage.removeItem(getTimerStorageKey(worker, dateString));
+}
 
     // ————— START ————
   </script>
