@@ -1167,28 +1167,52 @@ function stopCurrentTaskTimer() {
     }
 }
 function toggleStartStopTimer() {
-    if (!timerData) return;
-    if (timerData.isRunning) {
-        stopCurrentTaskTimer();
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+    let session = data.sessions ? data.sessions.find(s => s.isRunning) : null;
+
+    if (session && session.isRunning) {
+        // Stop
+        session.endTime = Date.now();
+        session.isRunning = false;
+        session.duration += Math.floor((session.endTime - session.startTime) / 1000);
+        setFullTimerData(state.worker, dateStr, data);
+        clearInterval(timerInterval);
     } else {
-        // Wznów timer
-        timerData.startTime = Date.now();
-        timerData.isRunning = true;
+        // Wznów ostatnią sesję (lub zacznij nową)
+        if (session) {
+            session.startTime = Date.now();
+            session.isRunning = true;
+        } else {
+            // brak aktywnej sesji — nie rób nic lub możesz dodać nową?
+        }
+        setFullTimerData(state.worker, dateStr, data);
         timerInterval = setInterval(renderTimerSummary, 1000);
     }
     renderTimerSummary();
+    updateTimerButtonVisibility();
 }
+
 
 
 function renderTimerSummary() {
     const summary = document.getElementById('summary');
     summary.innerHTML = '';
-    if (!timerData) return;
 
-    let elapsed = timerData.totalSeconds;
-    if (timerData.isRunning) {
-        elapsed += Math.floor((Date.now() - timerData.startTime) / 1000);
+    // Pobierz najnowsze dane z localStorage (by np. ktoś wyłączył/odświeżył)
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+    let session = data.sessions ? data.sessions.find(s => s.isRunning) : null;
+    if (!session) session = timerData;
+
+    if (!session) {
+        summary.innerHTML = "<p>Brak aktywnej sesji.</p>";
+        return;
     }
+
+    let elapsed = session.duration || 0;
+    if (session.isRunning) elapsed += Math.floor((Date.now() - session.startTime) / 1000);
+
     // Formatowanie czasu
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
@@ -1197,36 +1221,60 @@ function renderTimerSummary() {
 
     summary.innerHTML = `
       <div class="summary-entry">
-        <p><strong>Projekt:</strong> ${timerData.project}<br>
-        <strong>Kategoria:</strong> ${timerData.category}<br>
-        <strong>Zadanie:</strong> ${timerData.subcategory}</p>
+        <p><strong>Projekt:</strong> ${session.project}<br>
+        <strong>Kategoria:</strong> ${session.category}<br>
+        <strong>Zadanie:</strong> ${session.subcategory}</p>
         <p><strong>Czas:</strong> <span id="timer-value">${elapsedStr}</span></p>
-        <button id="startStopBtn" onclick="toggleStartStopTimer()">${timerData.isRunning ? '⏹️ Stop' : '▶️ Start'}</button>
+        <button id="startStopBtn" onclick="toggleStartStopTimer()">${session.isRunning ? '⏹️ Stop' : '▶️ Start'}</button>
       </div>
     `;
 }
 
 
-function startTaskTimer(entry) {
-    // Zatrzymaj poprzedni timer, jeśli był
-    stopCurrentTaskTimer();
 
-    // Inicjuj dane timera
-    timerData = {
+function startTaskTimer(entry) {
+    stopCurrentTaskTimer(); // zamknij, jeśli coś już było
+
+    // Pobierz dane z localStorage na dziś
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+
+    // Jeśli jest aktywna sesja — domknięcie czasu
+    if (data.sessions && data.sessions.length && data.sessions[data.sessions.length-1].isRunning) {
+        // zatrzymaj poprzednią
+        const prev = data.sessions[data.sessions.length-1];
+        prev.endTime = Date.now();
+        prev.isRunning = false;
+        prev.duration = Math.floor((prev.endTime - prev.startTime)/1000);
+    }
+
+    // Dodaj nową sesję
+    const newSession = {
         ...entry,
         startTime: Date.now(),
-        totalSeconds: 0,
-        isRunning: true
+        endTime: null,
+        isRunning: true,
+        duration: 0 // w sekundach
     };
+    data.sessions = data.sessions || [];
+    data.sessions.push(newSession);
 
-    // Wyświetl podsumowanie z przyciskiem Start/Stop
+    data.timerState = "inProgress";
+    setFullTimerData(state.worker, dateStr, data);
+
+    timerData = newSession; // trzymamy aktualny wpis
+
+    // Ekran podsumowania
     showStep(5);
     renderTimerSummary();
-    timerInterval = setInterval(renderTimerSummary, 1000); // aktualizuj co sekundę
+    timerInterval = setInterval(renderTimerSummary, 1000);
 
-    // Ukryj przycisk "Dodaj kolejny projekt" w trybie timera
+    // Ukryj "Dodaj kolejny projekt"
     document.querySelector('button[onclick="addAnotherProject()"]').style.display = 'none';
+
+    updateTimerButtonVisibility();
 }
+
 
 
 // obsługa przycisku
@@ -1308,11 +1356,20 @@ async function handleUpdateTasks() {
       state.entries[idx].hours = val;
       renderSummary();
     }
-    function addAnotherProject(){
-      showStep(2);
-      renderProjects();
-
+    function addAnotherProject() {
+    // Blokujemy w trybie timera z aktywną sesją
+    if (timerMode) {
+        const dateStr = getDayString();
+        let data = getFullTimerData(state.worker, dateStr);
+        if (data.sessions && data.sessions.some(s => s.isRunning)) {
+            showToast("Najpierw zakończ/zatrzymaj bieżący pomiar!", true);
+            return;
+        }
     }
+    showStep(2);
+    renderProjects();
+}
+
 
     // ————— ZAPIS DO SHEETS —————
     function submitData() {
@@ -1330,14 +1387,42 @@ async function handleUpdateTasks() {
 
    async function actuallySubmitData() {
   try {
-    const values = state.entries.map(e => [
-      formatDateForSheets(new Date()),
-      state.worker,
-      e.project,
-      e.category,
-      e.subcategory,
-      e.hours
-    ]);
+    let values = [];
+    // — normalne wpisy (nie-timerowe)
+    if (state.entries && state.entries.length) {
+        values = state.entries.map(e => [
+            formatDateForSheets(new Date()),
+            state.worker,
+            e.project,
+            e.category,
+            e.subcategory,
+            e.hours
+        ]);
+    }
+
+    // — wpisy z timera:
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+    if (data.sessions && data.sessions.length) {
+        data.sessions.forEach(s => {
+            // sumuj czas dla (projekt+kat+zadanie), grupuj jeśli było kilka sesji tego samego
+            values.push([
+                formatDateForSheets(new Date(s.startTime)),
+                state.worker,
+                s.project,
+                s.category,
+                s.subcategory,
+                Math.floor((s.duration || 0)/3600 * 100) / 100 // lub: Math.round((s.duration||0)/3600*100)/100 — godziny z dokładnością do setnych
+            ]);
+        });
+        // Po wysłaniu wyczyść localStorage
+        localStorage.removeItem(getTimerStorageKey(state.worker, dateStr));
+    }
+
+    if (!values.length) {
+      showToast("Brak danych do zapisania!", true);
+      return;
+    }
 
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -1357,6 +1442,7 @@ async function handleUpdateTasks() {
     alert("Nie udało się zapisać danych.");
   }
 }
+
 
 
 
@@ -1447,6 +1533,18 @@ function getTimerState(worker) {
     return data.timerState || "off";
 }
 
+// Obiekt z sesjami — zapisujemy pod kluczem timerData_<worker>_<data>
+function getFullTimerData(worker, dateStr) {
+    const key = getTimerStorageKey(worker, dateStr);
+    return JSON.parse(localStorage.getItem(key) || '{"sessions":[],"timerState":"off"}');
+}
+
+function setFullTimerData(worker, dateStr, data) {
+    const key = getTimerStorageKey(worker, dateStr);
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+
 function updateTimerButtonVisibility() {
     const btn = document.getElementById('timer-toggle-btn');
     if (!state.worker || !TIMER_USERS.includes(state.worker)) {
@@ -1455,14 +1553,21 @@ function updateTimerButtonVisibility() {
     }
     btn.style.display = 'inline-block';
 
-    const timerState = getTimerState(state.worker);
+    const dateStr = getDayString();
+    const data = getFullTimerData(state.worker, dateStr);
+    // Żółty — gdy jest choć jedna sesja niezapisana lub trwa
+    const anyActive = (data.sessions||[]).some(s => s.isRunning || !s.savedToSheet);
+    let timerState = data.timerState || "off";
+
+    if (anyActive) timerState = "inProgress"; // lub "yellow"
     btn.textContent = (timerState === 'on' ? "⏱ Timer: ON" :
                       timerState === 'off' ? "⏱ Timer: OFF" :
-                      "⏱ Timer: NIESPIĘTY");
+                      "⏱ Timer: W TRAKCIE");
     btn.style.background = timerState === 'on' ? "#28a745" : 
                           timerState === 'off' ? "#d80000" : "#ffc107";
     btn.style.color = (timerState === 'on' || timerState === 'off') ? "#fff" : "#222";
 }
+
 
 function handleTimerToggle() {
     if (!state.worker || !TIMER_USERS.includes(state.worker)) return;
