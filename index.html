@@ -874,20 +874,22 @@ updateClock();
     function showStep(step) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(`step${step}`).classList.add('active');
-      const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
-      document.getElementById('step-title').innerText = titles[step-1];
-      document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
-      document.querySelector('.back-button').style.display =
-    (step === 1 || (step === 5 && timerMode)) ? 'none' : 'inline-block';
+  const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
+  document.getElementById('step-title').innerText = titles[step-1];
+  document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
+  // — poprawka:
+  document.querySelectorAll('.back-button').forEach(btn => {
+    btn.style.display = (step === 1 || (step === 5 && timerMode)) ? 'none' : 'inline-block';
+  });
 
-      currentStep = step;
-       if (step === 4) {
-    // zawsze chowamy godzinę, aż użytkownik wybierze zadanie
+  currentStep = step;
+  if (step === 4) {
     document.getElementById('hourSection').style.display = 'none';
     renderHourTiles();
   }
-updateTimerButtonVisibility(); // ← dodaj to tutaj!
+  updateTimerButtonVisibility();
 }
+
 
 // ————— Zaktualizowany handleAddCustom —————
 function handleAddCustom() {
@@ -1212,13 +1214,11 @@ function renderTimerSummary() {
     let elapsed = session.duration || 0;
     if (session.isRunning) {
         elapsed += Math.floor((Date.now() - session.startTime) / 1000);
-
         // URUCHOM licznik jeśli nie jest ustawiony!
         if (!timerInterval) {
             timerInterval = setInterval(renderTimerSummary, 1000);
         }
     } else {
-        // PAUZA – licznik nie leci, nie ustawiamy timerInterval
         clearInterval(timerInterval);
         timerInterval = null;
     }
@@ -1227,10 +1227,27 @@ function renderTimerSummary() {
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
     const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+
+    // --- POPRAWKA: obsługa widoczności przycisku ---
     const addBtn = document.querySelector('button[onclick="addAnotherProject()"]');
     if (addBtn) {
-      addBtn.style.display = (!timerData.isRunning ? 'inline-block' : 'none');
+        // Sprawdzamy, czy WSZYSTKIE sesje są zatrzymane
+        const allPaused = (data.sessions || []).every(s => !s.isRunning);
+        addBtn.style.display = allPaused ? 'inline-block' : 'none';
+    }
+
+    summary.innerHTML = `
+      <div class="summary-entry">
+        <p><strong>Projekt:</strong> ${session.project}<br>
+        <strong>Kategoria:</strong> ${session.category}<br>
+        <strong>Zadanie:</strong> ${session.subcategory}</p>
+        <p><strong>Czas:</strong> <span id="timer-value">${elapsedStr}</span></p>
+        <button id="startStopBtn" onclick="toggleStartStopTimer()">${session.isRunning ? '⏹️ Stop' : '▶️ Start'}</button>
+      </div>
+    `;
 }
+
+
 
 
     summary.innerHTML = `
