@@ -1320,13 +1320,13 @@ function selectProject(project) {
 
   // --- NOWE: obsługa trybu timera ---
   if (timerMode) {
-    // przechodzimy do wyboru kategorii, potem zadania, potem od razu start timera
+    // Przechodzimy do wyboru kategorii, potem zadania, potem od razu start timera
     showStep(3);
     renderTiles('categories', categories, cat => {
       currentEntry.category = cat;
       showStep(4);
-      const staticList = subcategoriesMap[cat]||[];
-      const cached = getCachedTasks()[cat]||[];
+      const staticList = subcategoriesMap[cat] || [];
+      const cached = getCachedTasks()[cat] || [];
       renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
         currentEntry.subcategory = subcat;
         // --- START TIMERA ---
@@ -1338,24 +1338,22 @@ function selectProject(project) {
 
   // --- Stary tryb normalny ---
   showStep(3);
-  renderTiles('categories', categories, async cat => {
+  renderTiles('categories', categories, cat => {
     currentEntry.category = cat;
     showStep(4);
-    // najpierw: statyczne + cache
-    const staticList = subcategoriesMap[cat]||[];
-    const cached = getCachedTasks()[cat]||[];
-    renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), ...)
- subcat => {
-  currentEntry.subcategory = subcat;
-  if (timerMode) {
-    startTaskTimer(currentEntry);
-  } else {
-    document.getElementById('hourSection').style.display = 'block';
-  }
-});
-
+    const staticList = subcategoriesMap[cat] || [];
+    const cached = getCachedTasks()[cat] || [];
+    renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
+      currentEntry.subcategory = subcat;
+      if (timerMode) {
+        startTaskTimer(currentEntry);
+      } else {
+        document.getElementById('hourSection').style.display = 'block';
+      }
+    });
   });
 }
+
 
 function stopCurrentTaskTimer() {
     if (timerInterval) {
