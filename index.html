@@ -855,28 +855,29 @@ const recent = getRecentProjects().slice(0,5);
 // w resetForm: od razu z cache’u, bez fetcha
 async function resetForm() {
   state = { worker: null, entries: [] };
-  checkPendingSave(); // <---- DODAJ TO!
-  // ładowanie z cache’u
   loadProjectsFromStorage();
-  projects = getCachedProjects();
-  // reszta initu GAPI + statusMap…
-  const statusMap = await fetchWorkerStatuses();
-  showStep(1);
- renderTiles('workers', workers, worker => {
-updateTimerButtonVisibility();
-  state.worker = worker;
-console.log("Kliknięto pracownika:", worker);
-console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
-
-  const oldTimers = loadTimerDataForWorker(worker);
-  if (oldTimers.length > 0) {
-    showPendingTimersScreen(oldTimers, worker);  // <-- już działa
+  // ⬇⬇⬇ To jest kluczowe
+  if (gapiInited) {
+    await fetchCategoriesFromSheet(); // ⬅⬅⬅ poczekaj na pobranie zanim cokolwiek dalej!
+  } else {
+    setTimeout(resetForm, 250);
     return;
   }
-  showStep(2);
-  renderProjects();
-  
-}, statusMap);
+  const statusMap = await fetchWorkerStatuses();
+  showStep(1);
+  renderTiles('workers', workers, worker => {
+    state.worker = worker;
+    const oldTimers = loadTimerDataForWorker(worker);
+    if (oldTimers.length > 0) {
+      showPendingTimersScreen(oldTimers, worker);
+      return;
+    }
+    showStep(2);
+    renderProjects();
+    updateTimerButtonVisibility();
+  }, statusMap);
+}
+
 
 function checkPendingSave() {
   const pending = localStorage.getItem("pendingSave");
@@ -918,7 +919,6 @@ async function actuallySubmitPendingData() {
 }
 
 
-}
 
     // Zwraca string daty YYYY-MM-DD
 function getDayString(offset = 0) {
@@ -1451,39 +1451,51 @@ function selectProject(project) {
 
   // --- NOWE: obsługa trybu timera ---
   if (timerMode) {
-    // Przechodzimy do wyboru kategorii, potem zadania, potem od razu start timera
     showStep(3);
+    fetchCategoriesFromSheet().then(() => {
+      renderTiles('categories', categories, cat => {
+        currentEntry.category = cat;
+        showStep(4);
+        const staticList = subcategoriesMap[cat] || [];
+        const cached = getCachedTasks()[cat] || [];
+        renderTiles(
+          'subcategories',
+          Array.from(new Set([...staticList, ...cached])),
+          subcat => {
+            currentEntry.subcategory = subcat;
+            // --- START TIMERA ---
+            startTaskTimer(currentEntry);
+          }
+        );
+      });
+    });
+    return; // NIE kontynuuj starej ścieżki!
+  }
+
+  // --- Stary tryb normalny ---
+  showStep(3);
+  fetchCategoriesFromSheet().then(() => {
     renderTiles('categories', categories, cat => {
       currentEntry.category = cat;
       showStep(4);
       const staticList = subcategoriesMap[cat] || [];
       const cached = getCachedTasks()[cat] || [];
-      renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
-        currentEntry.subcategory = subcat;
-        // --- START TIMERA ---
-        startTaskTimer(currentEntry);
-      });
-    });
-    return; // NIE kontynuuj starej ścieżki
-  }
-
-  // --- Stary tryb normalny ---
-  showStep(3);
-  renderTiles('categories', categories, cat => {
-    currentEntry.category = cat;
-    showStep(4);
-    const staticList = subcategoriesMap[cat] || [];
-    const cached = getCachedTasks()[cat] || [];
-    renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
-      currentEntry.subcategory = subcat;
-      if (timerMode) {
-        startTaskTimer(currentEntry);
-      } else {
-        document.getElementById('hourSection').style.display = 'block';
-      }
+      renderTiles(
+        'subcategories',
+        Array.from(new Set([...staticList, ...cached])),
+        subcat => {
+          currentEntry.subcategory = subcat;
+          if (timerMode) {
+            startTaskTimer(currentEntry);
+          } else {
+            document.getElementById('hourSection').style.display = 'block';
+          }
+        }
+      );
     });
   });
 }
+
 
 
 function stopCurrentTaskTimer() {
