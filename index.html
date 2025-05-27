@@ -1032,17 +1032,16 @@ function selectCategory(category) {
   showStep(4);
   const staticList = subcategoriesMap[category] || [];
   const cached = getCachedTasks()[category] || [];
-  renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), ...)
-, subcat => {
-  currentEntry.subcategory = subcat;
-  if (timerMode) {
-    startTaskTimer(currentEntry);
-  } else {
-    document.getElementById('hourSection').style.display = 'block';
-  }
-});
-
+  renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
+    currentEntry.subcategory = subcat;
+    if (timerMode) {
+      startTaskTimer(currentEntry);
+    } else {
+      document.getElementById('hourSection').style.display = 'block';
+    }
+  });
 }
+
 
 
 // ————— Zaktualizowany handleAddCustom —————
