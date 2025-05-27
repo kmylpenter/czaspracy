@@ -1192,7 +1192,8 @@ function handleAddCustom() {
     const name = prompt("Podaj nazwę nowej kategorii:");
     if (name && !categories.includes(name)) {
       categories.push(name);
-      renderTiles('categories', categories, selectCategory);
+      renderTiles('categories', window.categories, selectCategory);
+
       saveNewItemToSheet(name, 'NoweKategorie');
       showToast("Dodano nową kategorię");
     }
@@ -1714,9 +1715,10 @@ function startTaskTimer(entry) {
     timerData = newSession; // trzymamy aktualny wpis
 
     // Ekran podsumowania
-    showStep(5);
-    renderTimerSummary();
+        showStep(5);
     timerInterval = setInterval(renderTimerSummary, 1000);
+    renderTimerSummary(); // <- to wywołaj NA KOŃCU po ustawieniu intervala!
+
 
     // Ukryj "Dodaj kolejny projekt"
     document.querySelector('button[onclick="addAnotherProject()"]').style.display = 'none';
