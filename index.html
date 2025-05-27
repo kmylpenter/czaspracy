@@ -1208,25 +1208,25 @@ console.log("Rendertiles", { containerId, items, statusMap });
   }[step] || 'tile';
 
   items.forEach(item => {
-    const div = document.createElement('div');
-    div.className = `tile ${stepClass}`;
+  const div = document.createElement('div');
+  div.className = `tile ${stepClass}`;
 
-    // Dodaj klasę statusu (jeśli dotyczy)
-    if (statusMap[item]) {
-      div.classList.add(`tile-status-${statusMap[item]}`);
-    }
+  // Dodaj klasę statusu (jeśli dotyczy)
+  if (statusMap[item]) {
+    div.classList.add(`tile-status-${statusMap[item]}`);
+  }
 
-    div.innerText = item;
-    div.onclick = () => {
+  div.innerText = item;
+  div.onclick = () => {
+    div.classList.add('clicked');
+    setTimeout(() => div.classList.remove('clicked'), 200);
+    [...container.children].forEach(c => c.classList.remove('selected'));
+    div.classList.add('selected');
+    onClick(item);   // ← TYLKO TO
+  };
+  container.appendChild(div);
+});
 
-      div.classList.add('clicked');
-      setTimeout(() => div.classList.remove('clicked'), 200);
-      [...container.children].forEach(c => c.classList.remove('selected'));
-      div.classList.add('selected');
-      div.onclick = () => { ... onClick(item); }
-    };
-    container.appendChild(div);
-  });
 }
 
 
