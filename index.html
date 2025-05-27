@@ -542,6 +542,20 @@ function clearTimerDataForWorker(worker, dateString) {
   localStorage.removeItem(getTimerStorageKey(worker, dateString));
 }
 
+// 1. Funkcja konwertująca sekundy na "xh ymin"
+function formatSecondsToHhMm(sec) {
+  sec = parseInt(sec, 10);
+  if (isNaN(sec) || sec < 0) return "-";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  let out = "";
+  if (h > 0) out += `${h}h `;
+  if (m > 0) out += `${m}min`;
+  if (out.trim() === "") out = "0min";
+  return out.trim();
+}
+
+
 function showPendingTimersScreen(oldTimers, worker) {
   // Ukrywamy wszystkie ekrany
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -639,25 +653,29 @@ async function showRecentEntries() {
             </tr>
           </thead>
           <tbody>
-            ${recent.map(obj => `
-              <tr>
-                ${obj.data.map(col => `<td style="border:1px solid #eee; padding:4px;">${col}</td>`).join('')}
-                <td style="border:1px solid #eee; padding:4px; text-align:center;">
-                  <button onclick="editEntry(${obj.rowIndex})"
-                    style="cursor:pointer;
-                           background:none;
-                           border:none;
-                           padding:0;
-                           margin:0;
-                           line-height:1;
-                           font-size:inherit;
-                           vertical-align:middle;">
-                    ✏️
-                  </button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
+  ${recent.map(obj => `
+    <tr>
+      ${obj.data.map((col, colIdx) => 
+        `<td style="border:1px solid #eee; padding:4px;">${
+          colIdx === 5 ? formatSecondsToHhMm(col) : col
+        }</td>`
+      ).join('')}
+      <td style="border:1px solid #eee; padding:4px; text-align:center;">
+        <button onclick="editEntry(${obj.rowIndex})"
+          style="cursor:pointer;
+                 background:none;
+                 border:none;
+                 padding:0;
+                 margin:0;
+                 line-height:1;
+                 font-size:inherit;
+                 vertical-align:middle;">
+          ✏️
+        </button>
+      </td>
+    </tr>
+  `).join('')}
+</tbody>
         </table>
         <div style="text-align:center; margin-top:10px;">
           <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
