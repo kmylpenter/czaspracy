@@ -393,13 +393,14 @@ button:hover, .back-button:hover {
 <h3 id="clock" style="margin-top: 0;"></h3>
 <div id="toast"></div>
 
-  <div class="nav-bar" id="backButtonContainer">
+ <div class="nav-bar" id="backButtonContainer">
   <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
   <button id="addBtn" class="back-button" style="margin-left: 10px;" onclick="handleAddCustom()">➕ Dodaj</button>
   <button class="back-button" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
   <button id="timer-toggle-btn" onclick="handleTimerToggle()" style="display:none; margin-left:10px;">⏱ Timer</button>
-
+  <button id="go-summary-btn" class="back-button" onclick="goToSummary()" style="display:none;">📊 Podsumowanie</button>
 </div>
+
 
 
   <h2 id="step-title">Jak masz na imię?</h2>
@@ -427,6 +428,10 @@ button:hover, .back-button:hover {
 
   <div class="screen" id="step3">
     <div class="grid" id="categories"></div>
+    <div id="add-category-container" style="text-align:center;">
+      <button onclick="handleAddCategory()">➕ Dodaj kategorię</button>
+    </div>
+
   </div>
  <div class="screen" id="step4">
   <!-- ➡️ tutaj przycisk odświeżania zadań -->
@@ -470,6 +475,13 @@ function updateTimerButtonVisibility() {
                           timerState === 'off' ? "#d80000" : "#ffc107";
     btn.style.color = (timerState === 'on' || timerState === 'off') ? "#fff" : "#222";
 }
+
+// Pokazuje/ukrywa przycisk "Podsumowanie" gdy aktywny tryb timera
+function updateSummaryButtonVisibility() {
+  const btn = document.getElementById('go-summary-btn');
+  btn.style.display = timerMode ? 'inline-block' : 'none';
+}
+
 
 // Funkcja przełączająca timer po kliknięciu
 function handleTimerToggle() {
@@ -963,6 +975,21 @@ updateClock();
     // ————— DANE APLIKACJI —————
     const workers = ["Kamil","Paweł","Piotr","Przemek","Robert"];
     const categories = ["Stal","Drewno","Montaż","Biuro"];
+
+    async function fetchCategoriesFromSheet() {
+      try {
+        let baseCategories = ["Stal", "Drewno", "Montaż", "Biuro"];
+        const res = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `NoweKategorie!A2:A`
+        });
+        const newCategories = res.result.values?.flat() || [];
+        categories = Array.from(new Set([...baseCategories, ...newCategories].filter(Boolean)));
+      } catch (e) {
+        showToast("Błąd pobierania kategorii", true);
+      }
+    }
+
     const subcategoriesMap = {
       "Stal": ["Konstrukcja","Cięcie","Szlifowanie","Malowanie proszkowe"],
       "Drewno": ["Szlifowanie","Lakierowanie","Docinanie","Klejenie"],
@@ -996,6 +1023,8 @@ updateClock();
     renderHourTiles();
   }
   updateTimerButtonVisibility();
+  updateSummaryButtonVisibility();
+
 }
 
 
@@ -1028,6 +1057,27 @@ function handleAddCustom() {
   }
 }
 
+async function handleAddCategory() {
+  const name = prompt("Podaj nazwę nowej kategorii:");
+  if (!name) return;
+  if (!categories.includes(name)) {
+    categories.push(name);
+    await saveNewItemToSheet(name, 'NoweKategorie');
+    renderTiles('categories', categories, category => {
+      currentEntry.category = category;
+      showStep(4);
+      const staticList = subcategoriesMap[category]||[];
+      const cached = getCachedTasks()[category]||[];
+      renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
+        currentEntry.subcategory = subcat;
+        document.getElementById('hourSection').style.display = 'block';
+      });
+    });
+    showToast("Dodano nową kategorię");
+  } else {
+    showToast("Taka kategoria już istnieje!", true);
+  }
+}
 
 
 
@@ -1158,6 +1208,7 @@ console.log("Rendertiles", { containerId, items, statusMap });
     async function resetForm() {
   state = { worker: null, entries: [] };
   loadProjectsFromStorage();
+  await fetchCategoriesFromSheet(); // <--- TU DODAJ
 
   // Jeśli GAPI jeszcze się nie załadowało, poczekaj chwilę
   if (!gapiInited) {
@@ -1331,12 +1382,15 @@ function renderTimerSummary() {
         const s = elapsed % 60;
         const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
 
-        let btn = '';
-        if (session.isRunning) {
-            btn = `<button onclick="pauseTimerSession(${idx})">⏹️ Stop</button>`;
-        } else {
-            btn = `<button onclick="resumeTimerSession(${idx})">▶️ Wznów</button>`;
-        }
+        let btns = '';
+if (session.isRunning) {
+    btns += `<button onclick="pauseTimerSession(${idx})">⏹️ Stop</button>`;
+} else {
+    btns += `<button onclick="resumeTimerSession(${idx})">▶️ Wznów</button>`;
+}
+// Dodaj przycisk USUŃ
+btns += `<button onclick="deleteTimerSession(${idx})" style="margin-left:8px;">❌ Usuń</button>`;
+
 
         summary.innerHTML += `
     <div class="summary-entry row-timer">
@@ -1344,9 +1398,10 @@ function renderTimerSummary() {
         <span class="timer-col category">${session.category}</span>
         <span class="timer-col subcategory">${session.subcategory}</span>
         <span class="timer-col time" id="timer-value-${idx}">${elapsedStr}</span>
-        <span class="timer-col button">${btn}</span>
+        <span class="timer-col button">${btns}</span>
     </div>
 `;
+
 
     });
 
@@ -1406,6 +1461,16 @@ function resumeTimerSession(idx) {
     setFullTimerData(state.worker, dateStr, data);
     renderTimerSummary();
     updateTimerButtonVisibility();
+}
+
+function deleteTimerSession(idx) {
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+    if (!data.sessions) return;
+    data.sessions.splice(idx, 1);
+    setFullTimerData(state.worker, dateStr, data);
+    renderTimerSummary();
+    showToast("Usunięto timer");
 }
 
 
@@ -1765,6 +1830,11 @@ function handleTimerToggle() {
     updateTimerButtonVisibility();
 }
 
+function goToSummary() {
+  showStep(5);
+  if (timerMode) renderTimerSummary();
+  else renderSummary();
+}
 
 
 
