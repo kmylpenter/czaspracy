@@ -855,6 +855,7 @@ const recent = getRecentProjects().slice(0,5);
 // w resetForm: od razu z cache’u, bez fetcha
 async function resetForm() {
   state = { worker: null, entries: [] };
+  checkPendingSave(); // <---- DODAJ TO!
   // ładowanie z cache’u
   loadProjectsFromStorage();
   projects = getCachedProjects();
@@ -876,6 +877,40 @@ console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
   renderProjects();
   
 }, statusMap);
+
+function checkPendingSave() {
+  const pending = localStorage.getItem("pendingSave");
+  if (pending) {
+    showToast("Masz niezapisane dane! Kliknij tutaj, aby spróbować je zapisać.", true);
+    document.getElementById('toast').onclick = () => {
+      actuallySubmitPendingData();
+    };
+  }
+}
+
+
+
+async function actuallySubmitPendingData() {
+  const pending = localStorage.getItem("pendingSave");
+  if (!pending) return;
+  try {
+    const { values } = JSON.parse(pending);
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME_SAVE}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: { values }
+    });
+    localStorage.removeItem("pendingSave");
+    showToast("Udało się zapisać zaległe dane!");
+    resetForm();
+  } catch (err) {
+    showToast("Dalej nie udało się zapisać! Twoje dane są bezpieczne.", true);
+  }
+}
+
+
 }
 
     // Zwraca string daty YYYY-MM-DD
@@ -961,7 +996,7 @@ async function editEntry(rowIndex) {
       await doUpdate();
     };
     // prosimy o token
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    tokenClient.requestAccessToken({ prompt: '' });
   } else {
     // mamy token, jedziemy od razu
     await doUpdate();
@@ -1024,19 +1059,34 @@ updateClock();
 
 
     function gisLoaded() {
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (resp) => {
-          if (resp.error) {
-            console.error("Token error:", resp);
-            return;
-          }
-          actuallySubmitData();
-        }
-      });
-      gisInited = true;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) {
+        console.error("Token error:", resp);
+        return;
+      }
+      actuallySubmitData();
     }
+  });
+  gisInited = true;
+
+  // >>> DODAJ TEN BLOK:
+  // Automatyczne odświeżanie tokena co 50 minut (3000 sekund)
+  setInterval(() => {
+    if (gapiInited && gisInited) {
+      try {
+        tokenClient.requestAccessToken({ prompt: '' });
+        console.log("Token Google odświeżony automatycznie.");
+      } catch(e) {
+        console.warn("Nie udało się odświeżyć tokena:", e);
+      }
+    }
+  }, 50 * 60 * 1000); // 50 minut
+  // <<< KONIEC BLOKU
+}
+
 
     // ————— DANE APLIKACJI —————
     const workers = ["Kamil","Paweł","Piotr","Przemek","Robert"];
@@ -1742,7 +1792,7 @@ async function handleUpdateTasks() {
       }
       const tok = gapi.client.getToken();
       if (!tok) {
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+        tokenClient.requestAccessToken({ prompt: '' });
       } else {
         actuallySubmitData();
       }
@@ -1753,42 +1803,48 @@ async function handleUpdateTasks() {
     let values = [];
     // — normalne wpisy (nie-timerowe)
     if (state.entries && state.entries.length) {
-    values = state.entries.map(e => [
+      values = state.entries.map(e => [
         formatDateForSheets(new Date()),
         state.worker,
         e.project,
         e.category,
         e.subcategory,
         (typeof e.hours === "number") ? e.hours * 3600 : 0 // zamień na sekundy
-    ]);
-}
-
+      ]);
+    }
 
     // — wpisy z timera:
-    // — wpisy z timera:
-const dateStr = getDayString();
-let data = getFullTimerData(state.worker, dateStr);
-if (data.sessions && data.sessions.length) {
-    data.sessions.forEach(s => {
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+    if (data.sessions && data.sessions.length) {
+      data.sessions.forEach(s => {
         values.push([
-            formatDateForSheets(new Date(s.startTime)),
-            state.worker,
-            s.project,
-            s.category,
-            s.subcategory,
-            Math.floor(s.duration || 0) // SECONDS
+          formatDateForSheets(new Date(s.startTime)),
+          state.worker,
+          s.project,
+          s.category,
+          s.subcategory,
+          Math.floor(s.duration || 0) // SECONDS
         ]);
-    });
-    // Po wysłaniu wyczyść localStorage
-    localStorage.removeItem(getTimerStorageKey(state.worker, dateStr));
-}
-
+      });
+      // UWAGA: NIE kasuj localStorage na tym etapie!
+      // Kasujemy dopiero po sukcesie (poniżej)
+    }
 
     if (!values.length) {
       showToast("Brak danych do zapisania!", true);
       return;
     }
 
+    // ——— [NOWOŚĆ] ———
+    // Przed próbą zapisu do Google Sheets — ZAPISZ dane do localStorage!
+    localStorage.setItem("pendingSave", JSON.stringify({
+      values,
+      worker: state.worker,
+      date: new Date().toISOString()
+    }));
+
+    // Próba zapisu do Google Sheets
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME_SAVE}!A1`,
@@ -1797,16 +1853,24 @@ if (data.sessions && data.sessions.length) {
       resource: { values }
     });
 
-    // usuń cache statusów, żeby przy resetForm() pobrać je na nowo
+    // ——— PO SUKCESIE ———
+    // Kasujemy zaległe dane, bo już są w arkuszu
+    localStorage.removeItem("pendingSave");
+
+    // Czyścimy dane timerów tylko jeśli się powiodło!
+    localStorage.removeItem(getTimerStorageKey(state.worker, dateStr));
+    // Usuń cache statusów, żeby przy resetForm() pobrać je na nowo
     localStorage.removeItem("workerStatusCache");
 
     resetForm();
     showToast("Dane zostały zapisane!");
   } catch (err) {
     console.error("Błąd zapisu:", err);
-    alert("Nie udało się zapisać danych.");
+    // NIE kasujemy pendingSave! Dane zostają na następną próbę.
+    showToast("Błąd zapisu! Twoje dane są zachowane. Spróbuj ponownie.", true);
   }
 }
+
 
 
     // ————— ZAMIENNIK fetchProjectsFromSheet —————
