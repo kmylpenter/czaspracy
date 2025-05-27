@@ -1032,7 +1032,8 @@ function selectCategory(category) {
   showStep(4);
   const staticList = subcategoriesMap[category] || [];
   const cached = getCachedTasks()[category] || [];
-  renderTiles('subcategories', [...], subcat => {
+  renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), ...)
+, subcat => {
   currentEntry.subcategory = subcat;
   if (timerMode) {
     startTaskTimer(currentEntry);
@@ -1344,7 +1345,8 @@ function selectProject(project) {
     // najpierw: statyczne + cache
     const staticList = subcategoriesMap[cat]||[];
     const cached = getCachedTasks()[cat]||[];
-    renderTiles('subcategories', [...], subcat => {
+    renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), ...)
+ subcat => {
   currentEntry.subcategory = subcat;
   if (timerMode) {
     startTaskTimer(currentEntry);
@@ -1791,31 +1793,8 @@ function getDayString(offset = 0) {
     return d.toISOString().split('T')[0];
 }
 
-function loadTimerDataForWorker(worker) {
-    const result = [];
-    for (let offset = 0; offset > -3; offset--) {
-        const dayStr = getDayString(offset);
-        const key = `timerData_${worker}_${dayStr}`;
-        const data = JSON.parse(localStorage.getItem(key) || "null");
-        if (data) result.push({ dayStr, data });
-    }
-    return result;
-}
 
-function saveTimerState(worker, state) {
-    const dayStr = getDayString();
-    const key = `timerData_${worker}_${dayStr}`;
-    let data = JSON.parse(localStorage.getItem(key) || "{}");
-    data.timerState = state;
-    localStorage.setItem(key, JSON.stringify(data));
-}
 
-function getTimerState(worker) {
-    const dayStr = getDayString();
-    const key = `timerData_${worker}_${dayStr}`;
-    let data = JSON.parse(localStorage.getItem(key) || "{}");
-    return data.timerState || "off";
-}
 
 // Obiekt z sesjami — zapisujemy pod kluczem timerData_<worker>_<data>
 function getFullTimerData(worker, dateStr) {
