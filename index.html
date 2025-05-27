@@ -888,6 +888,13 @@ function checkPendingSave() {
   }
 }
 
+function formatSecondsHMS(sec) {
+  sec = Math.floor(sec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return [h, m, s].map(x=>x.toString().padStart(2,'0')).join(':');
+}
 
 
 async function actuallySubmitPendingData() {
@@ -1522,69 +1529,82 @@ function toggleStartStopTimer() {
 
 
 function renderTimerSummary() {
-    const summary = document.getElementById('summary');
-    summary.innerHTML = '';
+  const summary = document.getElementById('summary');
+  summary.innerHTML = '';
 
-    const dateStr = getDayString();
-    let data = getFullTimerData(state.worker, dateStr);
+  const dateStr = getDayString();
+  let data = getFullTimerData(state.worker, dateStr);
 
-    // Jeśli nie ma sesji
-    if (!data.sessions || data.sessions.length === 0) {
-        summary.innerHTML = "<p>Brak aktywnych zadań. Dodaj projekt!</p>";
-        return;
+  // Jeśli nie ma sesji
+  if (!data.sessions || data.sessions.length === 0) {
+    summary.innerHTML = "<p>Brak aktywnych zadań. Dodaj projekt!</p>";
+    // Wyzeruj licznik
+    const totalSpan = document.getElementById('totalHours');
+    if (totalSpan) {
+      totalSpan.innerText = formatSecondsHMS(0);
+      totalSpan.className = 'total-hours green';
     }
+    return;
+  }
 
-    // Wyświetl każdą sesję w osobnym boxie
-    data.sessions.forEach((session, idx) => {
-        let elapsed = session.duration || 0;
-        if (session.isRunning) {
-            elapsed += Math.floor((Date.now() - session.startTime) / 1000);
-        }
-        const h = Math.floor(elapsed / 3600);
-        const m = Math.floor((elapsed % 3600) / 60);
-        const s = elapsed % 60;
-        const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+  let sumSeconds = 0;
 
-        let btns = '';
-if (session.isRunning) {
-    btns += `<button onclick="pauseTimerSession(${idx})">⏹️ Stop</button>`;
-} else {
-    btns += `<button onclick="resumeTimerSession(${idx})">▶️ Wznów</button>`;
-}
-// Dodaj przycisk USUŃ
-btns += `<button onclick="deleteTimerSession(${idx})" style="margin-left:8px;">❌ Usuń</button>`;
+  // Wyświetl każdą sesję w osobnym boxie
+  data.sessions.forEach((session, idx) => {
+    let elapsed = session.duration || 0;
+    if (session.isRunning) {
+      elapsed += Math.floor((Date.now() - session.startTime) / 1000);
+    }
+    sumSeconds += elapsed;
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
 
+    let btns = '';
+    if (session.isRunning) {
+      btns += `<button onclick="pauseTimerSession(${idx})">⏹️ Stop</button>`;
+    } else {
+      btns += `<button onclick="resumeTimerSession(${idx})">▶️ Wznów</button>`;
+    }
+    btns += `<button onclick="deleteTimerSession(${idx})" style="margin-left:8px;">❌ Usuń</button>`;
 
-        summary.innerHTML += `
-    <div class="summary-entry row-timer">
+    summary.innerHTML += `
+      <div class="summary-entry row-timer">
         <span class="timer-col project"><b>${session.project}</b></span>
         <span class="timer-col category">${session.category}</span>
         <span class="timer-col subcategory">${session.subcategory}</span>
         <span class="timer-col time" id="timer-value-${idx}">${elapsedStr}</span>
         <span class="timer-col button">${btns}</span>
-    </div>
-`;
+      </div>
+    `;
+  });
 
+  // Wyświetl sumę wszystkich sesji na dole ekranu
+  const totalSpan = document.getElementById('totalHours');
+  if (totalSpan) {
+    totalSpan.innerText = formatSecondsHMS(sumSeconds);
+    totalSpan.className = 'total-hours ' + (sumSeconds > 9 * 3600 ? 'red' : 'green');
+  }
 
-    });
+  // Ukryj/pokaż "Dodaj kolejny projekt" jeśli jakaś sesja jest aktywna
+  const addBtn = document.querySelector('button[onclick="addAnotherProject()"]');
+  if (addBtn) {
+    const anyActive = data.sessions.some(s => s.isRunning);
+    addBtn.style.display = anyActive ? 'none' : 'inline-block';
+  }
 
-    // Ukryj/pokaż "Dodaj kolejny projekt" jeśli żadna sesja nie jest aktywna
-    const addBtn = document.querySelector('button[onclick="addAnotherProject()"]');
-    if (addBtn) {
-        const anyActive = data.sessions.some(s => s.isRunning);
-        addBtn.style.display = anyActive ? 'none' : 'inline-block';
+  // Odśwież zegarki na żywo tylko dla aktywnych sesji
+  if (data.sessions.some(s => s.isRunning)) {
+    if (!timerInterval) {
+      timerInterval = setInterval(renderTimerSummary, 1000);
     }
-
-    // Odśwież zegarki na żywo tylko dla aktywnych sesji
-    if (data.sessions.some(s => s.isRunning)) {
-        if (!timerInterval) {
-            timerInterval = setInterval(renderTimerSummary, 1000);
-        }
-    } else if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-    }
+  } else if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
 }
+
 
 function pauseTimerSession(idx) {
     const dateStr = getDayString();
@@ -1730,35 +1750,36 @@ async function handleUpdateTasks() {
     }
 
     function renderSummary() {
-      const summary = document.getElementById('summary');
-      let total = 0;
-      summary.innerHTML = '';
-      const header = document.createElement('p');
-      header.innerHTML = `<strong>Pracownik:</strong> ${state.worker}`;
-      summary.appendChild(header);
-      const container = document.createElement('div');
-      container.className = 'summary-entry-container';
-      state.entries.forEach((e,i) => {
-        total += e.hours;
-        const div = document.createElement('div');
-        div.className = 'summary-entry';
-        div.innerHTML = `
-          <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
-          <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
-          <div class="hour-options">
-            ${Array.from({length:16},(_,h)=>{
-              const hv = h+1;
-              return `<div class="tile ${e.hours===hv?'selected':''}" onclick="updateHours(${i},${hv})">${hv}</div>`;
-            }).join('')}
-          </div>
-        `;
-        container.appendChild(div);
-      });
-      summary.appendChild(container);
-      const totalSpan = document.getElementById('totalHours');
-      totalSpan.innerText = total;
-      totalSpan.className = `total-hours ${total>9?'red':'green'}`;
-    }
+  const summary = document.getElementById('summary');
+  let totalSeconds = 0;
+  summary.innerHTML = '';
+  const header = document.createElement('p');
+  header.innerHTML = `<strong>Pracownik:</strong> ${state.worker}`;
+  summary.appendChild(header);
+  const container = document.createElement('div');
+  container.className = 'summary-entry-container';
+  state.entries.forEach((e,i) => {
+    totalSeconds += (typeof e.hours === "number" ? e.hours * 3600 : 0);
+    const div = document.createElement('div');
+    div.className = 'summary-entry';
+    div.innerHTML = `
+      <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
+      <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
+      <div class="hour-options">
+        ${Array.from({length:16},(_,h)=>{
+          const hv = h+1;
+          return `<div class="tile ${e.hours===hv?'selected':''}" onclick="updateHours(${i},${hv})">${hv}</div>`;
+        }).join('')}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+  summary.appendChild(container);
+  const totalSpan = document.getElementById('totalHours');
+  totalSpan.innerText = formatSecondsHMS(totalSeconds);
+  totalSpan.className = `total-hours ${totalSeconds>9*3600?'red':'green'}`;
+}
+
 
     function removeEntry(idx) {
       state.entries.splice(idx,1);
