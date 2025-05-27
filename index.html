@@ -1173,7 +1173,7 @@ updateClock();
     function showStep(step) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(`step${step}`).classList.add('active');
-  const titles = ["Wybierz swoje imię","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
+  const titles = [" ","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
   document.getElementById('step-title').innerText = titles[step-1];
   document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
   // — poprawka:
