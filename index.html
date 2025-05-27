@@ -1225,6 +1225,7 @@ async function handleAddCategory() {
   if (!categories.includes(name)) {
     categories.push(name);
     await saveNewItemToSheet(name, 'NoweKategorie');
+    await fetchCategoriesFromSheet();  // ← dodać to
     renderTiles('categories', categories, category => {
       currentEntry.category = category;
       showStep(4);
@@ -1371,14 +1372,11 @@ console.log("Rendertiles", { containerId, items, statusMap });
     async function resetForm() {
   state = { worker: null, entries: [] };
   loadProjectsFromStorage();
+  // *** NIE CZEKAJ na gapiInited tylko spróbuj zawsze pobrać kategorie z arkusza ***
   if (gapiInited) {
-  await fetchCategoriesFromSheet();
-}
- // <--- TU DODAJ
-
-  // Jeśli GAPI jeszcze się nie załadowało, poczekaj chwilę
-  if (!gapiInited) {
-    console.warn("Google API niegotowe, spróbuję ponownie za 250ms...");
+    await fetchCategoriesFromSheet();
+  } else {
+    // próbuj aż się załaduje!
     setTimeout(resetForm, 250);
     return;
   }
@@ -1618,9 +1616,17 @@ function pauseTimerSession(idx) {
     session.duration += Math.floor((session.endTime - session.startTime) / 1000);
 
     setFullTimerData(state.worker, dateStr, data);
+
+    // *** DODANE: czyść interval ***
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+
     renderTimerSummary();
     updateTimerButtonVisibility();
 }
+
 
 function resumeTimerSession(idx) {
     const dateStr = getDayString();
@@ -1642,9 +1648,15 @@ function resumeTimerSession(idx) {
     session.isRunning = true;
 
     setFullTimerData(state.worker, dateStr, data);
+
+    // *** DODANE: odpalaj zawsze nowy interval ***
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(renderTimerSummary, 1000);
+
     renderTimerSummary();
     updateTimerButtonVisibility();
 }
+
 
 function deleteTimerSession(idx) {
     const dateStr = getDayString();
@@ -1655,12 +1667,17 @@ function deleteTimerSession(idx) {
     // Jeśli nie ma żadnych sesji, wyłącz timerState
     if (data.sessions.length === 0) {
         data.timerState = "off";
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
     }
     setFullTimerData(state.worker, dateStr, data);
     renderTimerSummary();
     updateTimerButtonVisibility();
     showToast("Usunięto timer");
 }
+
 
 
 
