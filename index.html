@@ -1565,10 +1565,17 @@ function deleteTimerSession(idx) {
     let data = getFullTimerData(state.worker, dateStr);
     if (!data.sessions) return;
     data.sessions.splice(idx, 1);
+
+    // Jeśli nie ma żadnych sesji, wyłącz timerState
+    if (data.sessions.length === 0) {
+        data.timerState = "off";
+    }
     setFullTimerData(state.worker, dateStr, data);
     renderTimerSummary();
+    updateTimerButtonVisibility();
     showToast("Usunięto timer");
 }
+
 
 
 function startTaskTimer(entry) {
