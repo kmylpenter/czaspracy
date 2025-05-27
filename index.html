@@ -1097,7 +1097,6 @@ updateClock();
 
     // ————— DANE APLIKACJI —————
     const workers = ["Kamil","Paweł","Piotr","Przemek","Robert"];
-    const categories = ["Stal","Drewno","Montaż","Biuro"];
 
     async function fetchCategoriesFromSheet() {
   if (!gapiInited) return;
@@ -1227,7 +1226,7 @@ async function handleAddCategory() {
     categories.push(name);
     await saveNewItemToSheet(name, 'NoweKategorie');
     await fetchCategoriesFromSheet();  // ← dodać to
-    renderTiles('categories', categories, category => {
+    renderTiles('categories', window.categories, category => {
       currentEntry.category = category;
       showStep(4);
       const staticList = subcategoriesMap[category]||[];
@@ -1453,7 +1452,7 @@ function selectProject(project) {
   if (timerMode) {
     showStep(3);
     fetchCategoriesFromSheet().then(() => {
-      renderTiles('categories', categories, cat => {
+      renderTiles('categories', window.categories, cat => {
         currentEntry.category = cat;
         showStep(4);
         const staticList = subcategoriesMap[cat] || [];
@@ -1475,7 +1474,7 @@ function selectProject(project) {
   // --- Stary tryb normalny ---
   showStep(3);
   fetchCategoriesFromSheet().then(() => {
-    renderTiles('categories', categories, cat => {
+    renderTiles('categories', window.categories, cat => {
       currentEntry.category = cat;
       showStep(4);
       const staticList = subcategoriesMap[cat] || [];
