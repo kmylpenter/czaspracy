@@ -394,12 +394,13 @@ button:hover, .back-button:hover {
 <div id="toast"></div>
 
  <div class="nav-bar" id="backButtonContainer">
-  <button class="back-button" onclick="goBack()">⬅ Wstecz</button>
+  <button class="back-button" id="backBtn" onclick="goBack()">⬅ Wstecz</button>
   <button id="addBtn" class="back-button" style="margin-left: 10px;" onclick="handleAddCustom()">➕ Dodaj</button>
-  <button class="back-button" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
+  <button class="back-button" id="viewEntriesBtn" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
   <button id="timer-toggle-btn" onclick="handleTimerToggle()" style="display:none; margin-left:10px;">⏱ Timer</button>
   <button id="go-summary-btn" class="back-button" onclick="goToSummary()" style="display:none;">📊 Podsumowanie</button>
 </div>
+
 
 
 
@@ -670,52 +671,45 @@ async function showRecentEntries() {
 
     // 4) budujemy tabelę z dodatkową kolumną „Edytuj”
     const html = `
-      <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
-                  background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
-                  max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
-        <h3>Ostatnie wpisy</h3>
-        <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
-          <thead>
-            <tr>
-              <th style="border-bottom:1px solid #ccc;">Data</th>
-              <th style="border-bottom:1px solid #ccc;">Pracownik</th>
-              <th style="border-bottom:1px solid #ccc;">Projekt</th>
-              <th style="border-bottom:1px solid #ccc;">Kategoria</th>
-              <th style="border-bottom:1px solid #ccc;">Zadanie</th>
-              <th style="border-bottom:1px solid #ccc;">Godziny</th>
-              <th style="border-bottom:1px solid #ccc;">Edytuj</th>
-            </tr>
-          </thead>
-          <tbody>
-  ${recent.map(obj => `
-    <tr>
-      ${obj.data.map((col, colIdx) => 
-        `<td style="border:1px solid #eee; padding:4px;">${
-          colIdx === 5 ? formatSecondsToHhMm(col) : col
-        }</td>`
-      ).join('')}
-      <td style="border:1px solid #eee; padding:4px; text-align:center;">
-        <button onclick="editEntry(${obj.rowIndex})"
-          style="cursor:pointer;
-                 background:none;
-                 border:none;
-                 padding:0;
-                 margin:0;
-                 line-height:1;
-                 font-size:inherit;
-                 vertical-align:middle;">
-          ✏️
-        </button>
-      </td>
-    </tr>
-  `).join('')}
-</tbody>
-        </table>
-        <div style="text-align:center; margin-top:10px;">
-          <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
-        </div>
-      </div>
-    `;
+  <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
+              background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+              max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
+    <h3>Ostatnie wpisy</h3>
+    <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Pracownik</th>
+          <th>Projekt</th>
+          <th>Kategoria</th>
+          <th>Zadanie</th>
+          <th>Godziny</th>
+          <th>Edytuj</th>
+          <th>Usuń</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${recent.map(obj => `
+          <tr>
+            ${obj.data.map((col, colIdx) =>
+              `<td>${colIdx === 5 ? formatSecondsToHhMm(col) : col}</td>`
+            ).join('')}
+            <td>
+              <button onclick="editEntry(${obj.rowIndex})">✏️</button>
+            </td>
+            <td>
+              <button onclick="deleteEntry(${obj.rowIndex})" style="color:red;">🗑️</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div style="text-align:center; margin-top:10px;">
+      <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
+    </div>
+  </div>
+`;
+
     // wstrzyknięcie
     const container = document.createElement('div');
     container.innerHTML = html;
@@ -990,6 +984,23 @@ function getTimerState(worker) {
     return data.timerState || "off";
 }
 
+async function deleteEntry(rowIndex) {
+  if (!confirm("Czy na pewno chcesz usunąć ten wpis? Tej operacji nie można cofnąć.")) return;
+  try {
+    await withAuthRequest(() =>
+      gapi.client.sheets.spreadsheets.values.clear({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME_SAVE}!A${rowIndex}:F${rowIndex}`
+      })
+    );
+    showToast("Wpis został usunięty.");
+    document.getElementById('entries-popup').remove();
+    showRecentEntries();
+  } catch (e) {
+    console.error("Błąd kasowania wpisu:", e);
+    showToast("Nie udało się usunąć wpisu.", true);
+  }
+}
 
 
 async function editEntry(rowIndex) {
@@ -1167,7 +1178,7 @@ updateClock();
   document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
   // — poprawka:
   document.querySelectorAll('.back-button').forEach(btn => {
-    btn.style.display = (step === 1 || (step === 5 && timerMode)) ? 'none' : 'inline-block';
+    document.getElementById('backBtn').style.display = (step === 1 || (step === 5 && timerMode)) ? 'none' : 'inline-block';
   });
 
   currentStep = step;
