@@ -545,7 +545,7 @@ function clearTimerDataForWorker(worker, dateString) {
 function showPendingTimersScreen(oldTimers, worker) {
   // Ukrywamy wszystkie ekrany
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  // Jeśli nie masz jeszcze osobnego ekranu, zrób tymczasowy popup:
+  // Tworzymy popup
   let html = `<div id="pending-timers-screen" style="
       position:fixed; top:10%; left:50%; transform:translateX(-50%);
       background:white; padding:30px; box-shadow:0 0 12px rgba(0,0,0,.20);
@@ -554,18 +554,20 @@ function showPendingTimersScreen(oldTimers, worker) {
       <ul style="padding-left:18px;">`;
   oldTimers.forEach(({dayStr, data}) => {
     html += `<li style="margin-bottom: 10px;">
-      <b>${dayStr}</b> — <button onclick="saveOldTimerToSheet('${worker}','${dayStr}')">Zapisz</button>
+      <b>${dayStr}</b> — 
+      <button onclick="viewPendingTimerSummary('${worker}','${dayStr}')" style="background:#3a86ff; color:white;">Wyświetl</button>
       <br>
       <span style="font-size:0.95em; color:#666;">(Ilość wpisów: ${data.entries ? data.entries.length : 0})</span>
     </li>`;
   });
   html += `</ul>
-      <button onclick="closePendingTimersScreen()" style="margin-top:12px;">Pomiń</button>
+      <button onclick="skipAndClearPendingTimers('${worker}')" style="margin-top:12px; background:#d80000; color:white;">Pomiń</button>
     </div>`;
   const div = document.createElement('div');
   div.innerHTML = html;
   document.body.appendChild(div);
 }
+
 
 function closePendingTimersScreen() {
   const el = document.getElementById('pending-timers-screen');
@@ -707,6 +709,63 @@ async function fetchProjectsFromSheet() {
     showToast("Błąd aktualizacji projektów", true);
   }
 }
+
+function viewPendingTimerSummary(worker, dayStr) {
+  // Zamknij popup
+  const el = document.getElementById('pending-timers-screen');
+  if (el) el.remove();
+
+  // Przejdź do ekranu podsumowania
+  showStep(5);
+
+  // Wyświetl podsumowanie z tej daty (wpisy z localStorage)
+  renderOldTimerSummary(worker, dayStr);
+}
+
+function skipAndClearPendingTimers(worker) {
+  // Usuń wszystkie zaległe timery z localStorage
+  for (let i = 0; i < 3; i++) {
+    const dayStr = getDayString(-i);
+    const key = getTimerStorageKey(worker, dayStr);
+    localStorage.removeItem(key);
+  }
+  // Zamknij popup
+  const el = document.getElementById('pending-timers-screen');
+  if (el) el.remove();
+  showStep(2);
+  renderProjects();
+  updateTimerButtonVisibility();
+  showToast("Wyczyszczono niezatwierdzone pomiary", false);
+}
+
+function renderOldTimerSummary(worker, dayStr) {
+  const summary = document.getElementById('summary');
+  summary.innerHTML = '';
+
+  let data = getFullTimerData(worker, dayStr);
+  if (!data.sessions || data.sessions.length === 0) {
+    summary.innerHTML = "<p>Brak wpisów do wyświetlenia.</p>";
+    return;
+  }
+
+  data.sessions.forEach((session, idx) => {
+    let elapsed = session.duration || 0;
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+
+    summary.innerHTML += `
+      <div class="summary-entry row-timer">
+        <span class="timer-col project"><b>${session.project}</b></span>
+        <span class="timer-col category">${session.category}</span>
+        <span class="timer-col subcategory">${session.subcategory}</span>
+        <span class="timer-col time">${elapsedStr}</span>
+      </div>
+    `;
+  });
+}
+
 
 function getCachedTasks() {
   try { return JSON.parse(localStorage.getItem('tasksCache')||'{}') }
