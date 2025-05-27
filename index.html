@@ -427,10 +427,10 @@ button:hover, .back-button:hover {
 
 
   <div class="screen" id="step3">
+<button onclick="fetchCategoriesFromSheet()">🔄 Aktualizuj kategorie</button>
     <div class="grid" id="categories"></div>
     <div id="add-category-container" style="text-align:center;">
-      <button onclick="handleAddCategory()">➕ Dodaj kategorię</button>
-    </div>
+         </div>
 
   </div>
  <div class="screen" id="step4">
@@ -1027,21 +1027,46 @@ updateClock();
 
 }
 
+function selectCategory(category) {
+  currentEntry.category = category;
+  showStep(4);
+  const staticList = subcategoriesMap[category] || [];
+  const cached = getCachedTasks()[category] || [];
+  renderTiles('subcategories', [...], subcat => {
+  currentEntry.subcategory = subcat;
+  if (timerMode) {
+    startTaskTimer(currentEntry);
+  } else {
+    document.getElementById('hourSection').style.display = 'block';
+  }
+});
+
+}
+
 
 // ————— Zaktualizowany handleAddCustom —————
 function handleAddCustom() {
-  if (currentStep === 2) {
+  if (currentStep === 2) { // Projekty
     const name = prompt("Podaj nazwę nowego projektu:");
     if (name && !projects.includes(name)) {
       projects.push(name);
       localStorage.setItem('projekty', JSON.stringify(projects));
       renderProjects();
-
       saveNewItemToSheet(name, 'NoweProjekty');
     }
   }
 
-  if (currentStep === 4 && currentEntry?.category) {
+  if (currentStep === 3) { // Kategorie
+    const name = prompt("Podaj nazwę nowej kategorii:");
+    if (name && !categories.includes(name)) {
+      categories.push(name);
+      renderTiles('categories', categories, selectCategory);
+      saveNewItemToSheet(name, 'NoweKategorie');
+      showToast("Dodano nową kategorię");
+    }
+  }
+
+  if (currentStep === 4 && currentEntry?.category) { // Zadania
     const name = prompt("Podaj nazwę nowego zadania:");
     const list = subcategoriesMap[currentEntry.category] || [];
     if (name && !list.includes(name)) {
@@ -1049,13 +1074,18 @@ function handleAddCustom() {
       subcategoriesMap[currentEntry.category] = list;
       renderTiles('subcategories', list, subcat => {
   currentEntry.subcategory = subcat;
-  document.getElementById('hourSection').style.display = 'block';
+  if (timerMode) {
+    startTaskTimer(currentEntry);
+  } else {
+    document.getElementById('hourSection').style.display = 'block';
+  }
 });
-      // zamiast tylko nazwy – zapisujemy też kategorię
+
       saveNewTaskToSheet(currentEntry.category, name);
     }
   }
 }
+
 
 async function handleAddCategory() {
   const name = prompt("Podaj nazwę nowej kategorii:");
@@ -1188,11 +1218,12 @@ console.log("Rendertiles", { containerId, items, statusMap });
 
     div.innerText = item;
     div.onclick = () => {
+
       div.classList.add('clicked');
       setTimeout(() => div.classList.remove('clicked'), 200);
       [...container.children].forEach(c => c.classList.remove('selected'));
       div.classList.add('selected');
-      onClick(item);
+      div.onclick = () => { ... onClick(item); }
     };
     container.appendChild(div);
   });
@@ -1208,7 +1239,10 @@ console.log("Rendertiles", { containerId, items, statusMap });
     async function resetForm() {
   state = { worker: null, entries: [] };
   loadProjectsFromStorage();
-  await fetchCategoriesFromSheet(); // <--- TU DODAJ
+  if (gapiInited) {
+  await fetchCategoriesFromSheet();
+}
+ // <--- TU DODAJ
 
   // Jeśli GAPI jeszcze się nie załadowało, poczekaj chwilę
   if (!gapiInited) {
@@ -1310,10 +1344,15 @@ function selectProject(project) {
     // najpierw: statyczne + cache
     const staticList = subcategoriesMap[cat]||[];
     const cached = getCachedTasks()[cat]||[];
-    renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
-      currentEntry.subcategory = subcat;
-      document.getElementById('hourSection').style.display = 'block';
-    });
+    renderTiles('subcategories', [...], subcat => {
+  currentEntry.subcategory = subcat;
+  if (timerMode) {
+    startTaskTimer(currentEntry);
+  } else {
+    document.getElementById('hourSection').style.display = 'block';
+  }
+});
+
   });
 }
 
