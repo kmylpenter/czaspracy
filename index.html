@@ -457,6 +457,15 @@ button:hover, .back-button:hover {
   </div>
 
   <script>
+
+// Przy ładowaniu aplikacji:
+if (gapiInited) {
+  await fetchProjectsFromSheet();
+  await fetchCategoriesFromSheet();
+  await fetchTasksFromSheet();
+}
+
+
 // Wstaw do funkcji updateTimerButtonVisibility:
 function updateTimerButtonVisibility() {
     const btn = document.getElementById('timer-toggle-btn');
@@ -685,6 +694,7 @@ function setCachedProjects(arr) {
 }
 
 // fetch + cache + render
+// Stara wersja (przy odświeżeniu nadpisuje tylko window.projects):
 async function fetchProjectsFromSheet() {
   if (!gapiInited) return;
   try {
@@ -698,17 +708,16 @@ async function fetchProjectsFromSheet() {
         range: `NoweProjekty!A2:A`
       })
     ]);
-    const baseList   = base.result.values?.flat()   || [];
-    const customList = custom.result.values?.flat() || [];
-    projects = Array.from(new Set([...baseList, ...customList].filter(Boolean)));
-    setCachedProjects(projects);
+    window.projects = Array.from(new Set([...base.result.values?.flat() || [], ...custom.result.values?.flat() || []].filter(Boolean)));
+    setCachedProjects(window.projects);
     renderProjects(); 
     showToast("Projekty zaktualizowane");
   } catch (e) {
-    console.error(e);
-    showToast("Błąd aktualizacji projektów", true);
+    console.error("Błąd pobierania projektów:", e);
+    showToast("Błąd pobierania projektów", true);
   }
 }
+
 
 function viewPendingTimerSummary(worker, dayStr) {
   // Zamknij popup
@@ -791,13 +800,14 @@ async function fetchTasksFromSheet() {
         if (!tasksByCat[cat].includes(task)) tasksByCat[cat].push(task);
       }
     });
-    setCachedTasks(tasksByCat);
+    setCachedTasks(tasksByCat); // <--- Zawsze aktualizuj cache!
     return tasksByCat;
   } catch (e) {
     console.error(e);
     return getCachedTasks();
   }
 }
+
 // Pobierz z localStorage lub []  
 function getRecentProjects() {
   try { return JSON.parse(localStorage.getItem('recentProjects'))||[]; }
@@ -1043,18 +1053,16 @@ updateClock();
       range: `NoweKategorie!A2:A`
     });
     const newCategories = res.result.values?.flat() || [];
-    // Zawsze aktualizuj globalną listę kategorii
     window.categories = Array.from(new Set([...baseCategories, ...newCategories].filter(Boolean)));
-    // Jeśli jesteś w kroku 3 – odśwież kafelki
-    if (currentStep === 3) {
-      renderTiles('categories', window.categories, selectCategory);
-    }
+    localStorage.setItem('categories', JSON.stringify(window.categories));
+    if (currentStep === 3) renderTiles('categories', window.categories, selectCategory);
     showToast("Kategorie zaktualizowane");
   } catch (e) {
     console.error("Błąd pobierania kategorii:", e);
     showToast("Błąd pobierania kategorii", true);
   }
 }
+
 
     const subcategoriesMap = {
       "Stal": ["Konstrukcja","Cięcie","Szlifowanie","Malowanie proszkowe"],
