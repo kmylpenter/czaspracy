@@ -684,37 +684,7 @@ function setCachedProjects(arr) {
   localStorage.setItem('projekty', JSON.stringify(arr))
 }
 
-// fetch + cache + render
-async function fetchProjectsFromSheet() {
-  if (!gapiInited) return;
-  try {
-    // Pobierz wszystkie projekty z obu miejsc
-    const [base, custom] = await Promise.all([
-      gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME_LOAD}!A2:A`
-      }),
-      gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `NoweProjekty!A2:A`
-      })
-    ]);
-    // Łączymy i filtrujemy powtórzenia
-    const allProjects = Array.from(new Set([
-      ...(base.result.values?.flat() || []),
-      ...(custom.result.values?.flat() || [])
-    ].filter(Boolean)));
 
-    // **NADPISZ**: Zapisz TYLKO te projekty (nie łącz z cache!)
-    projects = allProjects;
-    setCachedProjects(projects);
-    renderProjects();
-    showToast("Projekty zaktualizowane z arkusza");
-  } catch (e) {
-    console.error("Błąd pobierania projektów:", e);
-    showToast("Błąd aktualizacji projektów", true);
-  }
-}
 
 
 function viewPendingTimerSummary(worker, dayStr) {
@@ -798,8 +768,16 @@ async function fetchTasksFromSheet() {
         if (!tasksByCat[cat].includes(task)) tasksByCat[cat].push(task);
       }
     });
-    // ZAPISZ TYLKO świeże dane do cache!
-    localStorage.setItem('tasksCache', JSON.stringify(tasksByCat));
+    // **NADPISZ**: lokalny cache w localStorage
+    setCachedTasks(tasksByCat);
+    // odśwież widok jeśli jesteśmy na odpowiednim kroku
+    if (currentStep === 4 && currentEntry?.category) {
+      const list = tasksByCat[currentEntry.category] || [];
+      renderTiles('subcategories', list, subcat => {
+        currentEntry.subcategory = subcat;
+        document.getElementById('hourSection').style.display = 'block';
+      });
+    }
     showToast("Zadania zaktualizowane z arkusza");
     return tasksByCat;
   } catch (e) {
@@ -808,7 +786,6 @@ async function fetchTasksFromSheet() {
     return {};
   }
 }
-
 
 // Pobierz z localStorage lub []  
 function getRecentProjects() {
@@ -1048,25 +1025,26 @@ updateClock();
     const categories = ["Stal","Drewno","Montaż","Biuro"];
 
     async function fetchCategoriesFromSheet() {
+  if (!gapiInited) return;
   try {
-    let baseCategories = ["Stal", "Drewno", "Montaż", "Biuro"];
+    const baseCategories = ["Stal", "Drewno", "Montaż", "Biuro"];
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `NoweKategorie!A2:A`
     });
     const newCategories = res.result.values?.flat() || [];
-    // NADPISZ aktualną listę — TYLKO to co z arkusza + bazowe!
-    window.categories = Array.from(new Set([...baseCategories, ...newCategories].filter(Boolean)));
-    if (currentStep === 3) {
-      renderTiles('categories', window.categories, selectCategory);
-    }
+    // Nadpisujemy globalną listę
+    window.categories = Array.from(new Set([
+      ...baseCategories,
+      ...newCategories
+    ].filter(Boolean)));
+    renderTiles('categories', window.categories, selectCategory);
     showToast("Kategorie zaktualizowane z arkusza");
   } catch (e) {
     console.error("Błąd pobierania kategorii:", e);
-    showToast("Błąd pobierania kategorii", true);
+    showToast("Błąd aktualizacji kategorii", true);
   }
 }
-
 
 
     const subcategoriesMap = {
@@ -1809,6 +1787,33 @@ if (data.sessions && data.sessions.length) {
   } catch (err) {
     console.error("Błąd zapisu:", err);
     alert("Nie udało się zapisać danych.");
+  }
+}
+
+
+    // ————— ZAMIENNIK fetchProjectsFromSheet —————
+async function fetchProjectsFromSheet() {
+  if (!gapiInited) return;
+  try {
+    const [base, custom] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME_LOAD}!A2:A`
+      }),
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `NoweProjekty!A2:A`
+      })
+    ]);
+    const baseList   = base.result.values?.flat()   || [];
+    const customList = custom.result.values?.flat() || [];
+    window.projects = Array.from(new Set([...baseList, ...customList].filter(Boolean)));
+    setCachedProjects(window.projects);
+    renderProjects(); 
+    showToast("Projekty zaktualizowane");
+  } catch (e) {
+    console.error("Błąd pobierania projektów:", e);
+    showToast("Błąd pobierania projektów", true);
   }
 }
 
