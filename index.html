@@ -894,16 +894,22 @@ async function resetForm() {
   const statusMap = await fetchWorkerStatuses();
   showStep(1);
   renderTiles('workers', workers, worker => {
-    state.worker = worker;
-    const oldTimers = loadTimerDataForWorker(worker);
-    if (oldTimers.length > 0) {
-      showPendingTimersScreen(oldTimers, worker);
-      return;
-    }
-    showStep(2);
-    renderProjects();
-    updateTimerButtonVisibility();
-  }, statusMap);
+  state.worker = worker;
+  // 1. Najpierw sprawdzamy overnight timer
+  if (checkOvernightTimer(worker)) {
+    return; // wyświetlił popup, nie idź dalej!
+  }
+  // 2. Jeśli nie overnight, sprawdzamy stare timery
+  const oldTimers = loadTimerDataForWorker(worker);
+  if (oldTimers.length > 0) {
+    showPendingTimersScreen(oldTimers, worker);
+    return;
+  }
+  showStep(2);
+  renderProjects();
+  updateTimerButtonVisibility();
+}, statusMap);
+
 }
 
 
@@ -2039,6 +2045,107 @@ function getFullTimerData(worker, dateStr) {
 function setFullTimerData(worker, dateStr, data) {
     const key = getTimerStorageKey(worker, dateStr);
     localStorage.setItem(key, JSON.stringify(data));
+}
+
+function checkOvernightTimer(worker) {
+  const now = new Date();
+  const todayStr = getDayString();
+  const timers = loadTimerDataForWorker(worker);
+
+  for (const { dayStr, data } of timers) {
+    if (!data.sessions || !data.sessions.length) continue;
+    for (const session of data.sessions) {
+      if (session.isRunning && session.startTime) {
+        const sessionDate = new Date(session.startTime);
+        const sessionDayStr = sessionDate.toISOString().split('T')[0];
+        if (sessionDayStr !== todayStr) {
+          // Timer zaczął się innego dnia!
+          showOvernightTimerPopup({ worker, dayStr, session });
+          return true; // znalazło i pokazało popup, kończymy
+        }
+      }
+    }
+  }
+  return false; // nie znaleziono
+}
+
+function showOvernightTimerPopup({worker, dayStr, session}) {
+  const startDate = new Date(session.startTime);
+  const now = new Date();
+  const elapsed = Math.floor((now - startDate) / 1000);
+  const h = Math.floor(elapsed / 3600);
+  const m = Math.floor((elapsed % 3600) / 60);
+  const s = elapsed % 60;
+  const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+
+  // Prosty modal
+  const html = `
+    <div id="overnight-popup" style="position:fixed;top:16%;left:50%;transform:translateX(-50%);
+      background:white;padding:24px 18px;box-shadow:0 0 20px #0003;z-index:9999;border-radius:16px;max-width:330px">
+      <h3>Wykryto timer z poprzedniego dnia!</h3>
+      <p>
+        Timer rozpoczęty: <b>${startDate.toLocaleString()}</b><br>
+        Aktualny czas: <b>${now.toLocaleString()}</b><br>
+        <b>Łączny czas:</b> ${elapsedStr}
+      </p>
+      <button onclick="acceptOvernightTimer('${worker}','${dayStr}')">
+        Zakończ timer i zapisz cały czas (${elapsedStr})
+      </button>
+      <button style="margin-left:12px" onclick="editOvernightTimer('${worker}','${dayStr}','${session.startTime}')">
+        Podaj ręcznie godzinę zakończenia
+      </button>
+      <br><br>
+      <button class="back-button" onclick="closeOvernightPopup()">Anuluj</button>
+    </div>
+  `;
+  document.getElementById('overnight-popup')?.remove();
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+
+function closeOvernightPopup() {
+  document.getElementById('overnight-popup')?.remove();
+}
+
+function acceptOvernightTimer(worker, dayStr) {
+  let data = getFullTimerData(worker, dayStr);
+  let session = (data.sessions||[]).find(s => s.isRunning);
+  if (!session) return;
+  session.endTime = Date.now();
+  session.duration += Math.floor((session.endTime - session.startTime)/1000);
+  session.isRunning = false;
+  setFullTimerData(worker, dayStr, data);
+  closeOvernightPopup();
+  showToast("Timer zakończony – możesz go teraz zapisać");
+  showStep(5);
+  renderOldTimerSummary(worker, dayStr);
+}
+
+function editOvernightTimer(worker, dayStr, startTime) {
+  const val = prompt("Podaj godzinę zakończenia (HH:MM, np. 18:30):", "18:00");
+  if (!val) return;
+  const [hh, mm] = val.split(':').map(Number);
+  if (isNaN(hh) || isNaN(mm)) {
+    showToast("Nieprawidłowy format godziny!", true);
+    return;
+  }
+  let endDate = new Date(Number(startTime));
+  endDate.setHours(hh, mm, 0, 0);
+  let endTime = endDate.getTime();
+  if (endTime < startTime) endTime += 24*3600*1000; // na wypadek przekroczenia północy
+
+  let data = getFullTimerData(worker, dayStr);
+  let session = (data.sessions||[]).find(s => s.isRunning);
+  if (!session) return;
+  session.endTime = endTime;
+  session.duration += Math.floor((endTime - session.startTime)/1000);
+  session.isRunning = false;
+  setFullTimerData(worker, dayStr, data);
+  closeOvernightPopup();
+  showToast("Czas poprawiony – możesz go teraz zapisać");
+  showStep(5);
+  renderOldTimerSummary(worker, dayStr);
 }
 
 
