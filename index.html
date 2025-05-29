@@ -740,9 +740,10 @@ function viewPendingTimerSummary(worker, dayStr) {
   // Przejdź do ekranu podsumowania
   showStep(5);
 
-  // Wyświetl podsumowanie z tej daty (wpisy z localStorage)
-  renderOldTimerSummary(worker, dayStr);
+  // Wyświetl podsumowanie timera dla wybranej daty i pracownika
+  renderTimerSummary(worker, dayStr);
 }
+
 
 function skipAndClearPendingTimers(worker) {
   // Usuń wszystkie zaległe timery z localStorage
@@ -771,7 +772,11 @@ function renderOldTimerSummary(worker, dayStr) {
   }
 
   data.sessions.forEach((session, idx) => {
+    // Jeśli sesja nadal jest otwarta, licz czas od startTime do TERAZ
     let elapsed = session.duration || 0;
+    if (session.isRunning && session.startTime) {
+      elapsed += Math.floor((Date.now() - session.startTime) / 1000);
+    }
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
@@ -787,6 +792,7 @@ function renderOldTimerSummary(worker, dayStr) {
     `;
   });
 }
+
 
 
 function getCachedTasks() {
@@ -1584,17 +1590,16 @@ function toggleStartStopTimer() {
 
 
 
-function renderTimerSummary() {
+function renderTimerSummary(workerOverride = null, dateStrOverride = null) {
   const summary = document.getElementById('summary');
   summary.innerHTML = '';
 
-  const dateStr = getDayString();
-  let data = getFullTimerData(state.worker, dateStr);
+  const worker = workerOverride || state.worker;
+  const dateStr = dateStrOverride || getDayString();
+  let data = getFullTimerData(worker, dateStr);
 
-  // Jeśli nie ma sesji
   if (!data.sessions || data.sessions.length === 0) {
     summary.innerHTML = "<p>Brak aktywnych zadań. Dodaj projekt!</p>";
-    // Wyzeruj licznik
     const totalSpan = document.getElementById('totalHours');
     if (totalSpan) {
       totalSpan.innerText = formatSecondsHMS(0);
@@ -1604,8 +1609,6 @@ function renderTimerSummary() {
   }
 
   let sumSeconds = 0;
-
-  // Wyświetl każdą sesję w osobnym boxie
   data.sessions.forEach((session, idx) => {
     let elapsed = session.duration || 0;
     if (session.isRunning) {
@@ -1619,11 +1622,11 @@ function renderTimerSummary() {
 
     let btns = '';
     if (session.isRunning) {
-      btns += `<button onclick="pauseTimerSession(${idx})">⏹️ Stop</button>`;
+      btns += `<button onclick="pauseTimerSession(${idx},'${worker}','${dateStr}')">⏹️ Stop</button>`;
     } else {
-      btns += `<button onclick="resumeTimerSession(${idx})">▶️ Wznów</button>`;
+      btns += `<button onclick="resumeTimerSession(${idx},'${worker}','${dateStr}')">▶️ Wznów</button>`;
     }
-    btns += `<button onclick="deleteTimerSession(${idx})" style="margin-left:8px;">❌ Usuń</button>`;
+    btns += `<button onclick="deleteTimerSession(${idx},'${worker}','${dateStr}')" style="margin-left:8px;">❌ Usuń</button>`;
 
     summary.innerHTML += `
       <div class="summary-entry row-timer">
@@ -1636,24 +1639,15 @@ function renderTimerSummary() {
     `;
   });
 
-  // Wyświetl sumę wszystkich sesji na dole ekranu
   const totalSpan = document.getElementById('totalHours');
   if (totalSpan) {
     totalSpan.innerText = formatSecondsHMS(sumSeconds);
     totalSpan.className = 'total-hours ' + (sumSeconds > 9 * 3600 ? 'red' : 'green');
   }
 
-  // Ukryj/pokaż "Dodaj kolejny projekt" jeśli jakaś sesja jest aktywna
-  const addBtn = document.querySelector('button[onclick="addAnotherProject()"]');
-  if (addBtn) {
-    const anyActive = data.sessions.some(s => s.isRunning);
-    addBtn.style.display = anyActive ? 'none' : 'inline-block';
-  }
-
-  // Odśwież zegarki na żywo tylko dla aktywnych sesji
   if (data.sessions.some(s => s.isRunning)) {
     if (!timerInterval) {
-      timerInterval = setInterval(renderTimerSummary, 1000);
+      timerInterval = setInterval(() => renderTimerSummary(worker, dateStr), 1000);
     }
   } else if (timerInterval) {
     clearInterval(timerInterval);
@@ -1662,79 +1656,76 @@ function renderTimerSummary() {
 }
 
 
-function pauseTimerSession(idx) {
-    const dateStr = getDayString();
-    let data = getFullTimerData(state.worker, dateStr);
-    let session = data.sessions[idx];
-    if (!session || !session.isRunning) return;
 
-    // Zakończ czas dla tej sesji
-    session.endTime = Date.now();
-    session.isRunning = false;
-    session.duration += Math.floor((session.endTime - session.startTime) / 1000);
+function pauseTimerSession(idx, workerOverride = null, dateStrOverride = null) {
+  const worker = workerOverride || state.worker;
+  const dateStr = dateStrOverride || getDayString();
+  let data = getFullTimerData(worker, dateStr);
+  let session = data.sessions[idx];
+  if (!session || !session.isRunning) return;
 
-    setFullTimerData(state.worker, dateStr, data);
+  session.endTime = Date.now();
+  session.isRunning = false;
+  session.duration += Math.floor((session.endTime - session.startTime) / 1000);
 
-    // *** DODANE: czyść interval ***
+  setFullTimerData(worker, dateStr, data);
+
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  renderTimerSummary(worker, dateStr);
+  updateTimerButtonVisibility();
+}
+
+function resumeTimerSession(idx, workerOverride = null, dateStrOverride = null) {
+  const worker = workerOverride || state.worker;
+  const dateStr = dateStrOverride || getDayString();
+  let data = getFullTimerData(worker, dateStr);
+
+  data.sessions.forEach((s, i) => {
+    if (s.isRunning) {
+      s.endTime = Date.now();
+      s.isRunning = false;
+      s.duration += Math.floor((s.endTime - s.startTime) / 1000);
+    }
+  });
+
+  let session = data.sessions[idx];
+  if (!session || session.isRunning) return;
+  session.startTime = Date.now();
+  session.isRunning = true;
+
+  setFullTimerData(worker, dateStr, data);
+
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => renderTimerSummary(worker, dateStr), 1000);
+
+  renderTimerSummary(worker, dateStr);
+  updateTimerButtonVisibility();
+}
+
+function deleteTimerSession(idx, workerOverride = null, dateStrOverride = null) {
+  const worker = workerOverride || state.worker;
+  const dateStr = dateStrOverride || getDayString();
+  let data = getFullTimerData(worker, dateStr);
+  if (!data.sessions) return;
+  data.sessions.splice(idx, 1);
+
+  if (data.sessions.length === 0) {
+    data.timerState = "off";
     if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
+      clearInterval(timerInterval);
+      timerInterval = null;
     }
-
-    renderTimerSummary();
-    updateTimerButtonVisibility();
+  }
+  setFullTimerData(worker, dateStr, data);
+  renderTimerSummary(worker, dateStr);
+  updateTimerButtonVisibility();
+  showToast("Usunięto timer");
 }
 
-
-function resumeTimerSession(idx) {
-    const dateStr = getDayString();
-    let data = getFullTimerData(state.worker, dateStr);
-
-    // Najpierw zatrzymaj każdą inną aktywną sesję (żeby zawsze była tylko jedna aktywna)
-    data.sessions.forEach((s, i) => {
-        if (s.isRunning) {
-            s.endTime = Date.now();
-            s.isRunning = false;
-            s.duration += Math.floor((s.endTime - s.startTime) / 1000);
-        }
-    });
-
-    // Wznów wskazaną sesję
-    let session = data.sessions[idx];
-    if (!session || session.isRunning) return;
-    session.startTime = Date.now();
-    session.isRunning = true;
-
-    setFullTimerData(state.worker, dateStr, data);
-
-    // *** DODANE: odpalaj zawsze nowy interval ***
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(renderTimerSummary, 1000);
-
-    renderTimerSummary();
-    updateTimerButtonVisibility();
-}
-
-
-function deleteTimerSession(idx) {
-    const dateStr = getDayString();
-    let data = getFullTimerData(state.worker, dateStr);
-    if (!data.sessions) return;
-    data.sessions.splice(idx, 1);
-
-    // Jeśli nie ma żadnych sesji, wyłącz timerState
-    if (data.sessions.length === 0) {
-        data.timerState = "off";
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-        }
-    }
-    setFullTimerData(state.worker, dateStr, data);
-    renderTimerSummary();
-    updateTimerButtonVisibility();
-    showToast("Usunięto timer");
-}
 
 
 
