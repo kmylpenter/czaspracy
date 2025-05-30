@@ -467,20 +467,30 @@ function updateTimerButtonVisibility() {
     }
     btn.style.display = 'inline-block';
 
-    // UWAGA! Bierz datę ze state.summaryDate jeśli istnieje
-    const dateStr = state.summaryDate || getDayString();
-    const data = getFullTimerData(state.worker, dateStr);
-    const anyActive = (data.sessions||[]).some(s => s.isRunning || !s.savedToSheet);
-    let timerState = data.timerState || "off";
-    if (anyActive) timerState = "inProgress"; // lub "yellow"
+    // Tryb globalny (timerMode) – stan włącznika
+    if (!timerMode) {
+        btn.textContent = "⏱ Timer: OFF";
+        btn.style.background = "#d80000";
+        btn.style.color = "#fff";
+        return;
+    }
 
-    btn.textContent = (timerState === 'on' ? "⏱ Timer: ON" :
-                      timerState === 'off' ? "⏱ Timer: OFF" :
-                      "⏱ Timer: W TRAKCIE");
-    btn.style.background = timerState === 'on' ? "#28a745" : 
-                          timerState === 'off' ? "#d80000" : "#ffc107";
-    btn.style.color = (timerState === 'on' || timerState === 'off') ? "#fff" : "#222";
+    // TimerMode = true, sprawdzamy czy coś się "kręci" dziś
+    const dateStr = getDayString();
+    const data = getFullTimerData(state.worker, dateStr);
+    const isRunning = (data.sessions || []).some(s => s.isRunning);
+
+    if (isRunning) {
+        btn.textContent = "⏱ Timer: W TRAKCIE";
+        btn.style.background = "#ffc107";
+        btn.style.color = "#222";
+    } else {
+        btn.textContent = "⏱ Timer: ON";
+        btn.style.background = "#28a745";
+        btn.style.color = "#fff";
+    }
 }
+
 
 
 // Pokazuje/ukrywa przycisk "Podsumowanie" gdy aktywny tryb timera
@@ -499,7 +509,7 @@ async function withAuthRequest(fn) {
           if (resp.error) reject(resp.error);
           else resolve();
         };
-        tokenClient.requestAccessToken({ prompt: '' });
+        tokenClient.requestAccessToken({ prompt: 'none' });
       });
     }
     // 2. Spróbuj wywołać przekazaną funkcję
@@ -516,7 +526,7 @@ async function withAuthRequest(fn) {
           if (resp.error) reject(resp.error);
           else resolve();
         };
-        tokenClient.requestAccessToken({ prompt: '' });
+        tokenClient.requestAccessToken({ prompt: 'none' });
       });
       return await fn();
     } else {
@@ -525,17 +535,6 @@ async function withAuthRequest(fn) {
   }
 }
 
-
-// Funkcja przełączająca timer po kliknięciu
-function handleTimerToggle() {
-    if (!state.worker || !TIMER_USERS.includes(state.worker)) return;
-    let timerState = getTimerState(state.worker);
-    if (timerState === "off") timerState = "on";
-    else if (timerState === "on") timerState = "off";
-    // inProgress ustawiamy tylko w późniejszych krokach
-    saveTimerState(state.worker, timerState);
-    updateTimerButtonVisibility();
-}
 
 
 // ———– KONFIGURACJA TIMERA ————
@@ -747,7 +746,11 @@ function viewPendingTimerSummary(worker, dayStr) {
   showStep(5);
 
   // Wyświetl podsumowanie timera dla wybranej daty i pracownika
-  renderTimerSummary(worker, dayStr);
+    timerMode = true; // Przechodzimy w tryb timera dla tej sesji!
+  state.summaryDate = dayStr; // zapamiętaj datę do wyświetlania podsumowania!
+  renderFullSummary(worker, dayStr);
+  updateTimerButtonVisibility(); // żeby kolor przycisku był poprawny!
+
 }
 
 
@@ -1107,7 +1110,7 @@ updateClock();
   setInterval(() => {
     if (gapiInited && gisInited) {
       try {
-        tokenClient.requestAccessToken({ prompt: '' });
+        tokenClient.requestAccessToken({ prompt: 'none' });
         console.log("Token Google odświeżony automatycznie.");
       } catch(e) {
         console.warn("Nie udało się odświeżyć tokena:", e);
@@ -1924,7 +1927,7 @@ function checkOvernightTimers(worker, dateStr) {
       }
       const tok = gapi.client.getToken();
       if (!tok) {
-        tokenClient.requestAccessToken({ prompt: '' });
+        tokenClient.requestAccessToken({ prompt: 'none' });
       } else {
         actuallySubmitData();
       }
@@ -2241,6 +2244,7 @@ function handleTimerToggle() {
     updateTimerButtonVisibility();
     renderFullSummary();
 }
+
 
 
 function goToSummary() {
