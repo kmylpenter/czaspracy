@@ -707,7 +707,7 @@ async function showRecentEntries() {
         </tr>
       </thead>
       <tbody>
-        ${recent.map(obj => `
+        ${recent.reverse().map(obj => `
           <tr>
             ${obj.data.map((col, colIdx) =>
               `<td>${colIdx === 5 ? formatSecondsToHhMm(col) : col}</td>`
@@ -1025,9 +1025,21 @@ async function editEntry(rowIndex) {
 
   // 2) Pytamy usera o nowe wartości
   const updated = old.map((val,i) => {
+  if (headers[i] === "Godziny") {
+    // Zamień sekundy na godziny, podpowiedz w prompt
+    const godziny = (parseInt(val, 10) / 3600).toLocaleString('pl-PL', {maximumFractionDigits: 2});
+    const inp = prompt(`Nowa wartość dla ${headers[i]} (w godzinach, np. 1,5):`, godziny);
+    if (inp == null) return val; // Anulowane
+    // Zamiana stringa z przecinkiem na kropkę i na liczbe
+    let h = parseFloat(inp.replace(',', '.'));
+    if (isNaN(h) || h < 0) h = 0;
+    return Math.round(h * 3600); // Zamień na sekundy do Google Sheets
+  } else {
     const inp = prompt(`Nowa wartość dla ${headers[i]}:`, val);
     return inp == null ? val : inp;
-  });
+  }
+});
+
 
   // 3) Funkcja, która robi faktyczny update
   async function doUpdate() {
