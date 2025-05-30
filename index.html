@@ -502,31 +502,41 @@ function updateSummaryButtonVisibility() {
 // ———— UNIWERSALNY WRAPPER Z LOGOWANIEM GOOGLE ————
 async function withAuthRequest(fn) {
   try {
-    // 1. Jeśli nie mamy tokena, poproś o dostęp
     if (!gapi.client.getToken()) {
-      await new Promise((resolve, reject) => {
-        tokenClient.callback = (resp) => {
-          if (resp.error) reject(resp.error);
-          else resolve();
-        };
-        tokenClient.requestAccessToken({ prompt: 'none' });
-      });
+      try {
+        // Najpierw bez prompta (cicho)
+        await new Promise((resolve, reject) => {
+          tokenClient.callback = (resp) => {
+            if (resp.error) reject(resp.error);
+            else resolve();
+          };
+          tokenClient.requestAccessToken({ prompt: '' });
+        });
+      } catch (err) {
+        // Jak nie zadziała – wymuś wybór konta
+        await new Promise((resolve, reject) => {
+          tokenClient.callback = (resp) => {
+            if (resp.error) reject(resp.error);
+            else resolve();
+          };
+          tokenClient.requestAccessToken({ prompt: 'consent select_account' });
+        });
+      }
     }
-    // 2. Spróbuj wywołać przekazaną funkcję
     return await fn();
   } catch (e) {
-    // 3. Jeśli błąd autoryzacji – spróbuj jeszcze raz po zalogowaniu
     if (
       e.status === 401 ||
       e.status === 403 ||
       (e.result && e.result.error && e.result.error.code === 401)
     ) {
+      // Jeszcze raz: jeśli token się wywalił
       await new Promise((resolve, reject) => {
         tokenClient.callback = (resp) => {
           if (resp.error) reject(resp.error);
           else resolve();
         };
-        tokenClient.requestAccessToken({ prompt: 'none' });
+        tokenClient.requestAccessToken({ prompt: 'consent select_account' });
       });
       return await fn();
     } else {
@@ -534,6 +544,8 @@ async function withAuthRequest(fn) {
     }
   }
 }
+
+
 
 
 
