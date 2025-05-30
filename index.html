@@ -762,9 +762,10 @@ function skipAndClearPendingTimers(worker) {
 }
 
 function renderOldTimerSummary(worker, dayStr) {
-  // Wyświetlamy pełne podsumowanie z timerami i wpisami (jeśli kiedyś pojawi się obsługa wpisów manualnych dla innych dni)
+  state.summaryDate = dayStr;
   renderFullSummary(worker, dayStr);
 }
+
 
 
 
@@ -1392,7 +1393,8 @@ console.log("Rendertiles", { containerId, items, statusMap });
     }
 
     async function resetForm() {
-  state = { worker: null, entries: [] };
+  state = { worker: null, entries: [], summaryDate: null };
+
   loadProjectsFromStorage();
   // *** NIE CZEKAJ na gapiInited tylko spróbuj zawsze pobrać kategorie z arkusza ***
   if (gapiInited) {
@@ -1562,6 +1564,8 @@ function toggleStartStopTimer() {
 
 
 function renderFullSummary(workerOverride = null, dateStrOverride = null) {
+  state.summaryDate = dateStrOverride || getDayString();
+
   const summary = document.getElementById('summary');
   summary.innerHTML = '';
   const worker = workerOverride || state.worker;
@@ -1589,7 +1593,7 @@ function renderFullSummary(workerOverride = null, dateStrOverride = null) {
         <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
         <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
         <div class="hour-options">
-          ${Array.from({length:16},(_,h)=>{
+          ${Array.from({length:16},(_,h)=> {
             const hv = h+1;
             return `<div class="tile ${e.hours===hv?'selected':''}" onclick="updateHours(${i},${hv})">${hv}</div>`;
           }).join('')}
@@ -1601,11 +1605,13 @@ function renderFullSummary(workerOverride = null, dateStrOverride = null) {
   }
 
   // 2. Potem wpisy z timera (każda sesja)
+  let anySessionRunning = false;
   if (sessions.length > 0) {
     sessions.forEach((session, idx) => {
       let elapsed = session.duration || 0;
       if (session.isRunning) {
         elapsed += Math.floor((Date.now() - session.startTime) / 1000);
+        anySessionRunning = true;
       }
       totalSeconds += elapsed;
       const h = Math.floor(elapsed / 3600);
@@ -1651,7 +1657,15 @@ function renderFullSummary(workerOverride = null, dateStrOverride = null) {
     totalSpan.innerText = formatSecondsHMS(totalSeconds);
     totalSpan.className = `total-hours ${totalSeconds>9*3600?'red':'green'}`;
   }
+
+  // --- KLUCZ: logika widoczności przycisku „Dodaj kolejny projekt” ---
+  const btn = document.querySelector('button[onclick="addAnotherProject()"]');
+  if (btn) {
+    // Ukryj jeśli: timerMode i JAKIKOLWIEK session.isRunning === true
+    btn.style.display = (timerMode && anySessionRunning) ? 'none' : '';
+  }
 }
+
 
 
 
@@ -1835,7 +1849,7 @@ async function handleUpdateTasks() {
       state.entries[idx].hours = val;
       renderFullSummary();
     }
-    
+
 function addAnotherProject(){
     if (timerMode) {
         const dateStr = getDayString();
@@ -1855,6 +1869,45 @@ function addAnotherProject(){
     renderProjects();
 }
 
+function checkOvernightTimers(worker, dateStr) {
+  // Pobierz dane timerów użytkownika
+  const timerData = getFullTimerData(worker, dateStr);
+  const sessions = timerData.sessions || [];
+
+  const today = new Date().toDateString();
+
+  // Przejdź po wszystkich aktywnych sesjach
+  sessions.forEach((session, idx) => {
+    if (session.isRunning) {
+      const start = new Date(session.startTime);
+      // Jeśli startTime to NIE dzisiejsza data:
+      if (start.toDateString() !== today) {
+        // Pokaż popup TYLKO raz na wejście!
+        if (!window.__overnightPopupShown) {
+          window.__overnightPopupShown = true;
+          setTimeout(() => {
+            if (confirm(
+              "Wygląda na to, że timer został uruchomiony wczoraj (" +
+              start.toLocaleString() +
+              ").\nCzy chcesz zaliczyć cały czas do dzisiaj (co może dać zbyt wiele godzin), czy zakończyć timer wczoraj (i wpisać faktyczny czas zakończenia)?\n\nKliknij OK, aby zakończyć timer na koniec wczorajszego dnia, lub Anuluj, aby zostawić jak jest."
+            )) {
+              // Ustaw duration do końca dnia startu (np. 23:59:59)
+              const endOfStartDay = new Date(start);
+              endOfStartDay.setHours(23, 59, 59, 999);
+              session.duration += Math.floor((endOfStartDay - start) / 1000);
+              session.isRunning = false;
+              session.startTime = null;
+              saveFullTimerData(worker, dateStr, timerData);
+              alert("Timer został zakończony na koniec dnia " + start.toLocaleDateString());
+              renderFullSummary(worker, dateStr);
+            }
+            // Jeśli Anuluj, timer zostaje jak jest — może naliczyć 20h
+          }, 100); // mały delay, by nie zblokować interfejsu
+        }
+      }
+    }
+  });
+}
 
 
     // ————— ZAPIS DO SHEETS —————
@@ -1887,7 +1940,7 @@ function addAnotherProject(){
     }
 
     // — wpisy z timera:
-    const dateStr = getDayString();
+    const dateStr = state.summaryDate || getDayString();
     let data = getFullTimerData(state.worker, dateStr);
     if (data.sessions && data.sessions.length) {
       data.sessions.forEach(s => {
@@ -1943,6 +1996,7 @@ function addAnotherProject(){
     showToast("Błąd zapisu! Twoje dane są zachowane. Spróbuj ponownie.", true);
   }
 }
+
 
 
 
