@@ -1766,16 +1766,21 @@ function startTaskTimer(entry) {
     timerData = newSession; // trzymamy aktualny wpis
 
     // Ekran podsumowania
-        showStep(5);
-    timerInterval = setInterval(renderTimerSummary, 1000);
-    renderFullSummary(); // <- to wywołaj NA KOŃCU po ustawieniu intervala!
+    showStep(5);
 
+    // **NOWOŚĆ — automatyczny podgląd timera w podsumowaniu**
+    if (window.__fullSummaryTimer) clearInterval(window.__fullSummaryTimer);
+    window.__fullSummaryTimer = setInterval(() => renderFullSummary(), 1000);
 
-    // Ukryj "Dodaj kolejny projekt"
-    document.querySelector('button[onclick="addAnotherProject()"]').style.display = 'none';
+    renderFullSummary(); // <- renderuj od razu, nie czekaj na kliknięcie!
+
+    // Ukryj "Dodaj kolejny projekt" tylko gdy jest tryb timera
+    const btn = document.querySelector('button[onclick="addAnotherProject()"]');
+    if (btn) btn.style.display = timerMode ? 'none' : '';
 
     updateTimerButtonVisibility();
 }
+
 
 
 
@@ -1830,7 +1835,8 @@ async function handleUpdateTasks() {
       state.entries[idx].hours = val;
       renderFullSummary();
     }
-    function addAnotherProject(){
+    
+function addAnotherProject(){
     if (timerMode) {
         const dateStr = getDayString();
         let data = getFullTimerData(state.worker, dateStr);
@@ -1839,6 +1845,11 @@ async function handleUpdateTasks() {
             showToast("Najpierw zatrzymaj aktualny pomiar (STOP)", true);
             return;
         }
+    }
+    // Czyść licznik interwału po wyjściu z podsumowania
+    if (window.__fullSummaryTimer) {
+        clearInterval(window.__fullSummaryTimer);
+        window.__fullSummaryTimer = null;
     }
     showStep(2);
     renderProjects();
