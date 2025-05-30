@@ -692,6 +692,9 @@ async function showRecentEntries() {
   <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
               background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
               max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
+              <div style="text-align:center; margin-top:10px;">
+      <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
+    </div>
     <h3>Ostatnie wpisy</h3>
     <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
       <thead>
@@ -722,9 +725,7 @@ async function showRecentEntries() {
         `).join('')}
       </tbody>
     </table>
-    <div style="text-align:center; margin-top:10px;">
-      <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
-    </div>
+    
   </div>
 `;
 
