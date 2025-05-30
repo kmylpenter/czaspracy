@@ -504,16 +504,16 @@ async function withAuthRequest(fn) {
   try {
     if (!gapi.client.getToken()) {
       try {
-        // Najpierw bez prompta (cicho)
+        // Cicha próba (prompt: '')
         await new Promise((resolve, reject) => {
           tokenClient.callback = (resp) => {
             if (resp.error) reject(resp.error);
             else resolve();
           };
-          tokenClient.requestAccessToken({ prompt: '' });
+          tokenClient.requestAccessToken({ prompt: '' }); // <= najpierw cicho
         });
       } catch (err) {
-        // Jak nie zadziała – wymuś wybór konta
+        // Jeśli nie działa – pokaż wybór konta
         await new Promise((resolve, reject) => {
           tokenClient.callback = (resp) => {
             if (resp.error) reject(resp.error);
@@ -530,7 +530,7 @@ async function withAuthRequest(fn) {
       e.status === 403 ||
       (e.result && e.result.error && e.result.error.code === 401)
     ) {
-      // Jeszcze raz: jeśli token się wywalił
+      // Jeszcze raz – ale tym razem z wymuszeniem prompta
       await new Promise((resolve, reject) => {
         tokenClient.callback = (resp) => {
           if (resp.error) reject(resp.error);
@@ -544,6 +544,7 @@ async function withAuthRequest(fn) {
     }
   }
 }
+
 
 
 
@@ -1117,20 +1118,19 @@ updateClock();
   });
   gisInited = true;
 
-  // >>> DODAJ TEN BLOK:
-  // Automatyczne odświeżanie tokena co 50 minut (3000 sekund)
+  // Automatyczne odświeżanie tokena co 50 minut
   setInterval(() => {
     if (gapiInited && gisInited) {
       try {
-        tokenClient.requestAccessToken({ prompt: 'none' });
-        console.log("Token Google odświeżony automatycznie.");
+        tokenClient.requestAccessToken({ prompt: '' }); // <= KLUCZOWA ZMIANA: 'prompt: ''' zamiast 'none'
+        console.log("Token Google odświeżony automatycznie (po cichu).");
       } catch(e) {
         console.warn("Nie udało się odświeżyć tokena:", e);
       }
     }
-  }, 50 * 60 * 1000); // 50 minut
-  // <<< KONIEC BLOKU
+  }, 50 * 60 * 1000);
 }
+
 
 
     // ————— DANE APLIKACJI —————
@@ -1933,17 +1933,19 @@ function checkOvernightTimers(worker, dateStr) {
 
     // ————— ZAPIS DO SHEETS —————
     function submitData() {
-      if (!gapiInited || !gisInited) {
-        alert("Trwa inicjalizacja Google API, spróbuj za chwilę.");
-        return;
-      }
-      const tok = gapi.client.getToken();
-      if (!tok) {
-        tokenClient.requestAccessToken({ prompt: 'none' });
-      } else {
-        actuallySubmitData();
-      }
-    }
+  if (!gapiInited || !gisInited) {
+    alert("Trwa inicjalizacja Google API, spróbuj za chwilę.");
+    return;
+  }
+  const tok = gapi.client.getToken();
+  if (!tok) {
+    // Zawsze najpierw „po cichu” (prompt: '')
+    tokenClient.requestAccessToken({ prompt: '' });
+  } else {
+    actuallySubmitData();
+  }
+}
+
 
    async function actuallySubmitData() {
   try {
