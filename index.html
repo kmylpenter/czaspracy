@@ -2205,19 +2205,37 @@ function updateTimerButtonVisibility() {
 
 function handleTimerToggle() {
     if (!state.worker || !TIMER_USERS.includes(state.worker)) return;
+
+    const dateStr = state.summaryDate || getDayString();
+    const data = getFullTimerData(state.worker, dateStr);
+
+    // Czy jest aktywna jakakolwiek sesja?
+    const anyActive = (data.sessions||[]).some(s => s.isRunning);
+
     let timerState = getTimerState(state.worker);
+
     if (timerState === "off") {
+        // Włącz tryb timera
         timerState = "on";
         timerMode = true;
         showToast("Tryb timera WŁĄCZONY");
-    } else if (timerState === "on") {
+    } else if (timerState === "on" || timerState === "inProgress") {
+        // Jeśli jest aktywny timer – NIE pozwalaj wyłączyć trybu!
+        if (anyActive) {
+            showToast("Najpierw zatrzymaj wszystkie aktywne timery!", true);
+            return;
+        }
+        // Wyłącz tryb timera (i pozwól na manual)
         timerState = "off";
         timerMode = false;
-        showToast("Tryb timera WYŁĄCZONY");
+        showToast("Tryb timera WYŁĄCZONY – możesz dodawać ręczne wpisy");
     }
+
     saveTimerState(state.worker, timerState);
     updateTimerButtonVisibility();
+    renderFullSummary();
 }
+
 
 function goToSummary() {
   showStep(5);
