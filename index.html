@@ -762,35 +762,8 @@ function skipAndClearPendingTimers(worker) {
 }
 
 function renderOldTimerSummary(worker, dayStr) {
-  const summary = document.getElementById('summary');
-  summary.innerHTML = '';
-
-  let data = getFullTimerData(worker, dayStr);
-  if (!data.sessions || data.sessions.length === 0) {
-    summary.innerHTML = "<p>Brak wpisów do wyświetlenia.</p>";
-    return;
-  }
-
-  data.sessions.forEach((session, idx) => {
-    // Jeśli sesja nadal jest otwarta, licz czas od startTime do TERAZ
-    let elapsed = session.duration || 0;
-    if (session.isRunning && session.startTime) {
-      elapsed += Math.floor((Date.now() - session.startTime) / 1000);
-    }
-    const h = Math.floor(elapsed / 3600);
-    const m = Math.floor((elapsed % 3600) / 60);
-    const s = elapsed % 60;
-    const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
-
-    summary.innerHTML += `
-      <div class="summary-entry row-timer">
-        <span class="timer-col project"><b>${session.project}</b></span>
-        <span class="timer-col category">${session.category}</span>
-        <span class="timer-col subcategory">${session.subcategory}</span>
-        <span class="timer-col time">${elapsedStr}</span>
-      </div>
-    `;
-  });
+  // Wyświetlamy pełne podsumowanie z timerami i wpisami (jeśli kiedyś pojawi się obsługa wpisów manualnych dla innych dni)
+  renderFullSummary(worker, dayStr);
 }
 
 
@@ -1583,148 +1556,178 @@ function toggleStartStopTimer() {
         setFullTimerData(state.worker, dateStr, data);
         timerInterval = setInterval(renderTimerSummary, 1000);
     }
-    renderTimerSummary();
+    renderFullSummary();
     updateTimerButtonVisibility();
 }
 
 
-
-
-function renderTimerSummary(workerOverride = null, dateStrOverride = null) {
+function renderFullSummary(workerOverride = null, dateStrOverride = null) {
   const summary = document.getElementById('summary');
   summary.innerHTML = '';
-
   const worker = workerOverride || state.worker;
   const dateStr = dateStrOverride || getDayString();
-  let data = getFullTimerData(worker, dateStr);
 
-  if (!data.sessions || data.sessions.length === 0) {
-    summary.innerHTML = "<p>Brak aktywnych zadań. Dodaj projekt!</p>";
-    const totalSpan = document.getElementById('totalHours');
-    if (totalSpan) {
-      totalSpan.innerText = formatSecondsHMS(0);
-      totalSpan.className = 'total-hours green';
-    }
-    return;
+  // Wpisy formularzowe (tylko z dzisiaj i tylko dla aktywnego użytkownika)
+  const manualEntries = (state.worker === worker && dateStr === getDayString()) ? state.entries : [];
+
+  // Timery z localStorage
+  let timerData = getFullTimerData(worker, dateStr);
+  let sessions = timerData.sessions || [];
+
+  // Suma wszystkich sekund
+  let totalSeconds = 0;
+
+  // 1. Najpierw wpisy formularzowe (kafelki z godzinami)
+  if (manualEntries.length > 0) {
+    const container = document.createElement('div');
+    container.className = 'summary-entry-container';
+    manualEntries.forEach((e, i) => {
+      totalSeconds += (typeof e.hours === "number" ? e.hours * 3600 : 0);
+      const div = document.createElement('div');
+      div.className = 'summary-entry';
+      div.innerHTML = `
+        <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
+        <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
+        <div class="hour-options">
+          ${Array.from({length:16},(_,h)=>{
+            const hv = h+1;
+            return `<div class="tile ${e.hours===hv?'selected':''}" onclick="updateHours(${i},${hv})">${hv}</div>`;
+          }).join('')}
+        </div>
+      `;
+      container.appendChild(div);
+    });
+    summary.appendChild(container);
   }
 
-  let sumSeconds = 0;
-  data.sessions.forEach((session, idx) => {
-    let elapsed = session.duration || 0;
-    if (session.isRunning) {
-      elapsed += Math.floor((Date.now() - session.startTime) / 1000);
-    }
-    sumSeconds += elapsed;
-    const h = Math.floor(elapsed / 3600);
-    const m = Math.floor((elapsed % 3600) / 60);
-    const s = elapsed % 60;
-    const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+  // 2. Potem wpisy z timera (każda sesja)
+  if (sessions.length > 0) {
+    sessions.forEach((session, idx) => {
+      let elapsed = session.duration || 0;
+      if (session.isRunning) {
+        elapsed += Math.floor((Date.now() - session.startTime) / 1000);
+      }
+      totalSeconds += elapsed;
+      const h = Math.floor(elapsed / 3600);
+      const m = Math.floor((elapsed % 3600) / 60);
+      const s = elapsed % 60;
+      const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
 
-    let btns = '';
-    if (session.isRunning) {
-      btns += `<button onclick="pauseTimerSession(${idx},'${worker}','${dateStr}')">⏹️ Stop</button>`;
+      let btns = '';
+      if (session.isRunning) {
+        btns += `<button onclick="pauseTimerSession(${idx},'${worker}','${dateStr}')">⏹️ Stop</button>`;
+      } else {
+        btns += `<button onclick="resumeTimerSession(${idx},'${worker}','${dateStr}')">▶️ Wznów</button>`;
+      }
+      btns += `<button onclick="deleteTimerSession(${idx},'${worker}','${dateStr}')" style="margin-left:8px;">❌ Usuń</button>`;
+
+      summary.innerHTML += `
+        <div class="summary-entry row-timer">
+          <span class="timer-col project"><b>${session.project}</b></span>
+          <span class="timer-col category">${session.category}</span>
+          <span class="timer-col subcategory">${session.subcategory}</span>
+          <span class="timer-col time" id="timer-value-${idx}">${elapsedStr}</span>
+          <span class="timer-col button">${btns}</span>
+        </div>
+      `;
+    });
+
+    // Żywy licznik – jeśli coś jest aktywne
+    if (sessions.some(s => s.isRunning)) {
+      if (!window.__fullSummaryTimer) {
+        window.__fullSummaryTimer = setInterval(() => renderFullSummary(worker, dateStr), 1000);
+      }
     } else {
-      btns += `<button onclick="resumeTimerSession(${idx},'${worker}','${dateStr}')">▶️ Wznów</button>`;
+      if (window.__fullSummaryTimer) {
+        clearInterval(window.__fullSummaryTimer);
+        window.__fullSummaryTimer = null;
+      }
     }
-    btns += `<button onclick="deleteTimerSession(${idx},'${worker}','${dateStr}')" style="margin-left:8px;">❌ Usuń</button>`;
+  }
 
-    summary.innerHTML += `
-      <div class="summary-entry row-timer">
-        <span class="timer-col project"><b>${session.project}</b></span>
-        <span class="timer-col category">${session.category}</span>
-        <span class="timer-col subcategory">${session.subcategory}</span>
-        <span class="timer-col time" id="timer-value-${idx}">${elapsedStr}</span>
-        <span class="timer-col button">${btns}</span>
-      </div>
-    `;
-  });
-
+  // 3. Suma wszystkich godzin na dole
   const totalSpan = document.getElementById('totalHours');
   if (totalSpan) {
-    totalSpan.innerText = formatSecondsHMS(sumSeconds);
-    totalSpan.className = 'total-hours ' + (sumSeconds > 9 * 3600 ? 'red' : 'green');
-  }
-
-  if (data.sessions.some(s => s.isRunning)) {
-    if (!timerInterval) {
-      timerInterval = setInterval(() => renderTimerSummary(worker, dateStr), 1000);
-    }
-  } else if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
+    totalSpan.innerText = formatSecondsHMS(totalSeconds);
+    totalSpan.className = `total-hours ${totalSeconds>9*3600?'red':'green'}`;
   }
 }
 
 
 
 function pauseTimerSession(idx, workerOverride = null, dateStrOverride = null) {
-  const worker = workerOverride || state.worker;
-  const dateStr = dateStrOverride || getDayString();
-  let data = getFullTimerData(worker, dateStr);
-  let session = data.sessions[idx];
-  if (!session || !session.isRunning) return;
+    const worker = workerOverride || state.worker;
+    const dateStr = dateStrOverride || getDayString();
+    let data = getFullTimerData(worker, dateStr);
+    let session = data.sessions[idx];
+    if (!session || !session.isRunning) return;
 
-  session.endTime = Date.now();
-  session.isRunning = false;
-  session.duration += Math.floor((session.endTime - session.startTime) / 1000);
+    // Zakończ czas dla tej sesji
+    session.endTime = Date.now();
+    session.isRunning = false;
+    session.duration += Math.floor((session.endTime - session.startTime) / 1000);
 
-  setFullTimerData(worker, dateStr, data);
+    setFullTimerData(worker, dateStr, data);
 
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
+    if (window.__fullSummaryTimer) {
+      clearInterval(window.__fullSummaryTimer);
+      window.__fullSummaryTimer = null;
+    }
 
-  renderTimerSummary(worker, dateStr);
-  updateTimerButtonVisibility();
+    renderFullSummary(worker, dateStr);
+    updateTimerButtonVisibility();
 }
 
 function resumeTimerSession(idx, workerOverride = null, dateStrOverride = null) {
-  const worker = workerOverride || state.worker;
-  const dateStr = dateStrOverride || getDayString();
-  let data = getFullTimerData(worker, dateStr);
+    const worker = workerOverride || state.worker;
+    const dateStr = dateStrOverride || getDayString();
+    let data = getFullTimerData(worker, dateStr);
 
-  data.sessions.forEach((s, i) => {
-    if (s.isRunning) {
-      s.endTime = Date.now();
-      s.isRunning = false;
-      s.duration += Math.floor((s.endTime - s.startTime) / 1000);
-    }
-  });
+    // Najpierw zatrzymaj każdą inną aktywną sesję (żeby zawsze była tylko jedna aktywna)
+    data.sessions.forEach((s, i) => {
+        if (s.isRunning) {
+            s.endTime = Date.now();
+            s.isRunning = false;
+            s.duration += Math.floor((s.endTime - s.startTime) / 1000);
+        }
+    });
 
-  let session = data.sessions[idx];
-  if (!session || session.isRunning) return;
-  session.startTime = Date.now();
-  session.isRunning = true;
+    // Wznów wskazaną sesję
+    let session = data.sessions[idx];
+    if (!session || session.isRunning) return;
+    session.startTime = Date.now();
+    session.isRunning = true;
 
-  setFullTimerData(worker, dateStr, data);
+    setFullTimerData(worker, dateStr, data);
 
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(() => renderTimerSummary(worker, dateStr), 1000);
+    if (window.__fullSummaryTimer) clearInterval(window.__fullSummaryTimer);
+    window.__fullSummaryTimer = setInterval(() => renderFullSummary(worker, dateStr), 1000);
 
-  renderTimerSummary(worker, dateStr);
-  updateTimerButtonVisibility();
+    renderFullSummary(worker, dateStr);
+    updateTimerButtonVisibility();
 }
 
 function deleteTimerSession(idx, workerOverride = null, dateStrOverride = null) {
-  const worker = workerOverride || state.worker;
-  const dateStr = dateStrOverride || getDayString();
-  let data = getFullTimerData(worker, dateStr);
-  if (!data.sessions) return;
-  data.sessions.splice(idx, 1);
+    const worker = workerOverride || state.worker;
+    const dateStr = dateStrOverride || getDayString();
+    let data = getFullTimerData(worker, dateStr);
+    if (!data.sessions) return;
+    data.sessions.splice(idx, 1);
 
-  if (data.sessions.length === 0) {
-    data.timerState = "off";
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
+    // Jeśli nie ma żadnych sesji, wyłącz timerState
+    if (data.sessions.length === 0) {
+        data.timerState = "off";
+        if (window.__fullSummaryTimer) {
+            clearInterval(window.__fullSummaryTimer);
+            window.__fullSummaryTimer = null;
+        }
     }
-  }
-  setFullTimerData(worker, dateStr, data);
-  renderTimerSummary(worker, dateStr);
-  updateTimerButtonVisibility();
-  showToast("Usunięto timer");
+    setFullTimerData(worker, dateStr, data);
+    renderFullSummary(worker, dateStr);
+    updateTimerButtonVisibility();
+    showToast("Usunięto timer");
 }
+
 
 
 
@@ -1765,7 +1768,7 @@ function startTaskTimer(entry) {
     // Ekran podsumowania
         showStep(5);
     timerInterval = setInterval(renderTimerSummary, 1000);
-    renderTimerSummary(); // <- to wywołaj NA KOŃCU po ustawieniu intervala!
+    renderFullSummary(); // <- to wywołaj NA KOŃCU po ustawieniu intervala!
 
 
     // Ukryj "Dodaj kolejny projekt"
@@ -1812,49 +1815,20 @@ async function handleUpdateTasks() {
       if (currentEntry.subcategory && currentEntry.hours>0) {
         state.entries.push({ ...currentEntry });
         showStep(5);
-        renderSummary();
+        renderFullSummary();
       }
     }
 
-    function renderSummary() {
-  const summary = document.getElementById('summary');
-  let totalSeconds = 0;
-  summary.innerHTML = '';
-  const header = document.createElement('p');
-  header.innerHTML = `<strong>Pracownik:</strong> ${state.worker}`;
-  summary.appendChild(header);
-  const container = document.createElement('div');
-  container.className = 'summary-entry-container';
-  state.entries.forEach((e,i) => {
-    totalSeconds += (typeof e.hours === "number" ? e.hours * 3600 : 0);
-    const div = document.createElement('div');
-    div.className = 'summary-entry';
-    div.innerHTML = `
-      <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
-      <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
-      <div class="hour-options">
-        ${Array.from({length:16},(_,h)=>{
-          const hv = h+1;
-          return `<div class="tile ${e.hours===hv?'selected':''}" onclick="updateHours(${i},${hv})">${hv}</div>`;
-        }).join('')}
-      </div>
-    `;
-    container.appendChild(div);
-  });
-  summary.appendChild(container);
-  const totalSpan = document.getElementById('totalHours');
-  totalSpan.innerText = formatSecondsHMS(totalSeconds);
-  totalSpan.className = `total-hours ${totalSeconds>9*3600?'red':'green'}`;
-}
+    
 
 
     function removeEntry(idx) {
       state.entries.splice(idx,1);
-      renderSummary();
+      renderFullSummary();
     }
     function updateHours(idx,val) {
       state.entries[idx].hours = val;
-      renderSummary();
+      renderFullSummary();
     }
     function addAnotherProject(){
     if (timerMode) {
@@ -2182,8 +2156,8 @@ function handleTimerToggle() {
 
 function goToSummary() {
   showStep(5);
-  if (timerMode) renderTimerSummary();
-  else renderSummary();
+  if (timerMode) renderFullSummary();
+  else renderFullSummary();
 }
 
 
