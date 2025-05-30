@@ -467,15 +467,21 @@ function updateTimerButtonVisibility() {
     }
     btn.style.display = 'inline-block';
 
-    // Wyznacz kolor wg stanu timera
-    const timerState = getTimerState(state.worker);
+    // UWAGA! Bierz datę ze state.summaryDate jeśli istnieje
+    const dateStr = state.summaryDate || getDayString();
+    const data = getFullTimerData(state.worker, dateStr);
+    const anyActive = (data.sessions||[]).some(s => s.isRunning || !s.savedToSheet);
+    let timerState = data.timerState || "off";
+    if (anyActive) timerState = "inProgress"; // lub "yellow"
+
     btn.textContent = (timerState === 'on' ? "⏱ Timer: ON" :
                       timerState === 'off' ? "⏱ Timer: OFF" :
-                      "⏱ Timer: NIESPIĘTY");
+                      "⏱ Timer: W TRAKCIE");
     btn.style.background = timerState === 'on' ? "#28a745" : 
                           timerState === 'off' ? "#d80000" : "#ffc107";
     btn.style.color = (timerState === 'on' || timerState === 'off') ? "#fff" : "#222";
 }
+
 
 // Pokazuje/ukrywa przycisk "Podsumowanie" gdy aktywny tryb timera
 function updateSummaryButtonVisibility() {
