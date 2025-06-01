@@ -1850,40 +1850,77 @@ async function handleUpdateTasks() {
 
 
 
-    function renderHourTiles() {
-  const c = document.getElementById('hourTiles');
-  c.innerHTML = '';
-  // Dodajemy godzinowe kafelki
-  for (let i = 1; i <= 16; i++) {
-    const d = document.createElement('div');
-    d.className = 'tile';
-    d.innerText = i;
-    d.onclick = () => {
-      currentEntry.hours = i;
-      currentEntry.half = false; // usuwamy połówkę, jeśli była wcześniej
-      renderHourTiles();
-    };
-    // Podświetl jeśli wybrane
-    if (currentEntry.hours === i && !currentEntry.half) d.classList.add('selected');
-    c.appendChild(d);
+    // Przykładowe wartości godzin
+const hourOptions = [0.5, 1, 2, 3, 4, 5];
 
-    // Jeśli ta godzina jest wybrana – pod spodem pokaż przycisk +½h
-    if (currentEntry.hours === i) {
-      const halfBtn = document.createElement('div');
-      halfBtn.className = 'tile';
-      halfBtn.innerText = currentEntry.half ? (i + 0.5) : (i + " + ½h");
-      halfBtn.style.background = '#f9a82633';
-      halfBtn.style.fontWeight = currentEntry.half ? 'bold' : 'normal';
-      halfBtn.onclick = () => {
-        currentEntry.half = !currentEntry.half;
-        renderHourTiles();
-      };
-      // Podświetlenie na połówkę
-      if (currentEntry.half) halfBtn.classList.add('selected');
-      c.appendChild(halfBtn);
+let selectedHours = 0;
+let lastClickedValue = null;
+let clickCount = 0;
+
+function renderHourTiles() {
+  const container = document.getElementById("hour-tiles");
+  container.innerHTML = ""; // Czyścimy poprzednie
+
+  // Render kafelków godzin (bez 0.5h na początek)
+  hourOptions.forEach(val => {
+    if (val !== 0.5) {
+      const tile = document.createElement("div");
+      tile.className = "hour-tile" + (selectedHours === val ? " selected" : "");
+      tile.innerText = `${val}h`;
+      tile.onclick = () => handleHourClick(val);
+      container.appendChild(tile);
     }
+  });
+
+  // Render kafelka 0.5h osobno
+  const halfTile = document.createElement("div");
+  halfTile.className = "hour-tile" + (selectedHours % 1 === 0.5 ? " selected" : "");
+  halfTile.innerText = "½h";
+  halfTile.onclick = () => handleHourClick(0.5, true);
+  container.appendChild(halfTile);
+}
+
+// Obsługa kliknięć kafelków
+function handleHourClick(val, isHalf = false) {
+  // Sprawdzamy czy to ten sam co poprzednio
+  if (lastClickedValue === val) {
+    clickCount++;
+  } else {
+    lastClickedValue = val;
+    clickCount = 1;
+  }
+
+  if (!isHalf) {
+    selectedHours = val;
+  } else {
+    // Klikamy 0.5h, dodajemy do obecnych godzin
+    if (selectedHours % 1 === 0.5) {
+      // Jeśli już jest pół godziny, nie dodajemy kolejnej
+      return;
+    }
+    selectedHours += 0.5;
+  }
+
+  renderHourTiles();
+
+  // Jeśli klikniesz dwukrotnie ten sam kafelek – zatwierdzamy!
+  if (clickCount === 2) {
+    confirmHourSelection();
+    clickCount = 0;
+    lastClickedValue = null;
   }
 }
+
+// Funkcja po zatwierdzeniu
+function confirmHourSelection() {
+  // Przejdź do kolejnego kroku, np. wyślij wartość, schowaj modal, itp.
+  alert("Wybrano " + selectedHours + "h");
+  // Możesz tu wykonać dowolne inne akcje
+}
+
+// Wywołujemy na start
+renderHourTiles();
+
 
 
 function tryFinishEntry() {
