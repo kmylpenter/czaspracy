@@ -1117,7 +1117,7 @@ updateClock();
 }
 
 
-    function gisLoaded() {
+function gisLoaded() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
@@ -1131,17 +1131,18 @@ updateClock();
   });
   gisInited = true;
 
+  // --- USUŃ TO CAŁE! ---
   // Automatyczne odświeżanie tokena co 50 minut
-  setInterval(() => {
-    if (gapiInited && gisInited) {
-      try {
-        tokenClient.requestAccessToken({ prompt: '' }); // <= KLUCZOWA ZMIANA: 'prompt: ''' zamiast 'none'
-        console.log("Token Google odświeżony automatycznie (po cichu).");
-      } catch(e) {
-        console.warn("Nie udało się odświeżyć tokena:", e);
-      }
-    }
-  }, 50 * 60 * 1000);
+  // setInterval(() => {
+  //   if (gapiInited && gisInited) {
+  //     try {
+  //       tokenClient.requestAccessToken({ prompt: '' }); // <= KLUCZOWA ZMIANA: 'prompt: ''' zamiast 'none'
+  //       console.log("Token Google odświeżony automatycznie (po cichu).");
+  //     } catch(e) {
+  //       console.warn("Nie udało się odświeżyć tokena:", e);
+  //     }
+  //   }
+  // }, 50 * 60 * 1000);
 }
 
 
