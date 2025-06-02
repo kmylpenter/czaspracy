@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy v1.0</title>
+  <title>Rejestracja czasu pracy v1.1</title>
 
  <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client"></script>
@@ -117,10 +117,11 @@ h3 {
 
 .tile {
   display: flex;
+  flex: 0 0 calc(100%/9 - 10px); /* max 9 kafli w wierszu, odjąć marginesy/gap */
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 120px;
+  width: 100px;
   height: 70px;
   white-space: normal;
   word-break: break-word;
