@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy v1.1</title>
+  <title>Rejestracja czasu pracy v1.2</title>
 
  <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client"></script>
@@ -117,16 +117,18 @@ h3 {
 
 .tile {
   display: flex;
-  flex: 0 0 calc(100%/9 - 10px); /* max 9 kafli w wierszu, odjąć marginesy/gap */
+  flex: 0 0 calc(100%/9 - 5px); /* 9 kafli + przerwy */
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 100px;
-  height: 70px;
+  min-width: 44px;     /* najwęższe na małych ekranach */
+  min-height: 44px;
+  max-width: 65px;     /* nie urosną za bardzo */
+  max-height: 65px;
   white-space: normal;
   word-break: break-word;
   text-align: center;
-  padding: 10px;
+  padding: 6px;
   border-radius: var(--tile-radius);
   box-shadow: var(--shadow2);
   cursor: pointer;
@@ -137,6 +139,7 @@ h3 {
   font-weight: 500;
   margin: 0;
   position: relative;
+  font-size: 1rem;
 }
 .tile:hover {
   background: var(--accent1-light);
@@ -159,6 +162,14 @@ h3 {
   50%  { transform: scale(1.08);}
   100% { transform: scale(1);}
 }
+
+/* Usuwamy szerokość/wysokość z tego bloku (poniżej) jeśli nie chcesz sztywnej wielkości! */
+#hourTiles .tile {
+  /* width: 50px;
+  height: 50px; */
+  padding: 5px;
+  font-size: 1rem;
+}
 /* Kafle w poszczególnych krokach */
 .tile-step1 { background: var(--glass-bg);}
 .tile-step2 { background: var(--glass-bg);}
@@ -179,7 +190,10 @@ h3 {
 #hourTiles {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 8px 4px; /* odrobinę odstępu poziomego i pionowego */
+  justify-content: center;
+  margin-bottom: 10px;
+  /* możesz dodać max-width jeśli kafelki mają się nie rozjeżdżać na dużym monitorze */
 }
 
 /* ———— BUTTONS ———— */
