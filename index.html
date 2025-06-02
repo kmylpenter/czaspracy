@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.21</title>
+  <title>Rejestracja czasu pracy 1.22</title>
 
  <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client"></script>
@@ -1628,7 +1628,7 @@ function renderFullSummary(workerOverride = null, dateStrOverride = null) {
     <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
     <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
     <div class="hour-options">
-      ${Array.from({length:16},(_,h)=>{
+      ${Array.from({length:15},(_,h)=>{
         const hv = h+1;
         let html = `<div class="tile ${(Math.floor(e.hours)===hv && !e.half)?'selected':''}" onclick="updateHoursWithHalf(${i},${hv},false)">${hv}</div>`;
         // Jeśli wybrane, pokaż połówkę
