@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.5</title>
+  <title>Rejestracja czasu pracy 1.2</title>
 
  <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client"></script>
@@ -306,9 +306,8 @@ button:hover, .back-button:hover {
 
 /* ———— GODZINY ———— */
 .hour-options {
-  display: flex;
-  flex-direction: column;
-  align-items: center;   /* Wyśrodkowanie całego kontenera */
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
   gap: 10px;
   margin-top: 10px;
   width: 90%;
@@ -319,14 +318,6 @@ button:hover, .back-button:hover {
 }
 @media (max-width: 400px) {
   .hour-options { grid-template-columns: repeat(2, 1fr);}
-}
-
-/* Jeden rząd kafelków */
-.hour-row {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
 }
 
 /* Ukryj wybór godzin na wejściu do kroku 4 */
@@ -1870,80 +1861,75 @@ async function handleUpdateTasks() {
 
 
 
-let lastClickedHour = null;
+    let lastClickedHour = null;
 let lastClickTime = 0;
 
 function renderHourTiles() {
   const c = document.getElementById('hourTiles');
   c.innerHTML = '';
 
-  // --- GENERUJ GODZINY (1...16 + połówki wg wyboru) ---
-  let hourTiles = [];
   for (let i = 1; i <= 16; i++) {
-    // Kafelka z pełną godziną
-    hourTiles.push({
-      value: i,
-      isHalf: false
-    });
-    // Jeśli wybrana – dodaj dodatkową kafelkę z połówką
+    const d = document.createElement('div');
+    d.className = 'tile';
+    d.innerText = i;
+
+    // Obsługa dwukliku
+    d.onclick = () => {
+      const now = Date.now();
+      if (lastClickedHour === i && now - lastClickTime < 700) {
+        // Dwuklik — zamykamy wybór i przechodzimy dalej
+        currentEntry.hours = i;
+        currentEntry.half = false;
+        // Tu możesz zamknąć modal/przejść dalej:
+        document.getElementById('hourSection').style.display = 'none';
+        tryFinishEntry();
+        // Reset dwukliku
+        lastClickedHour = null;
+        lastClickTime = 0;
+        return;
+      }
+      lastClickedHour = i;
+      lastClickTime = now;
+      currentEntry.hours = i;
+      currentEntry.half = false;
+      renderHourTiles();
+    };
+
+    // Podświetl jeśli wybrane
+    if (currentEntry.hours === i && !currentEntry.half) d.classList.add('selected');
+    c.appendChild(d);
+
+    // Jeśli ta godzina jest wybrana – pod spodem pokaż przycisk +½h
     if (currentEntry.hours === i) {
-      hourTiles.push({
-        value: i + 0.5,
-        isHalf: true
-      });
-    }
-  }
+      const halfBtn = document.createElement('div');
+      halfBtn.className = 'tile half-tile';
+      halfBtn.innerText = currentEntry.half ? (i + 0.5) : (i + " + ½h");
+      halfBtn.style.background = '#f9a82633';
+      halfBtn.style.fontWeight = currentEntry.half ? 'bold' : 'normal';
 
-  // --- PODZIEL NA WIERSZE PO 9 ---
-  let rows = [];
-  for (let i = 0; i < hourTiles.length; i += 9) {
-    rows.push(hourTiles.slice(i, i + 9));
-  }
-
-  // --- RENDERUJ WIERSZE ---
-  rows.forEach(rowTiles => {
-    const rowDiv = document.createElement('div');
-    rowDiv.className = 'hour-row';
-    rowTiles.forEach(tile => {
-      const d = document.createElement('div');
-      d.className = 'tile';
-      d.innerText = tile.isHalf
-        ? (currentEntry.half ? (tile.value) : (tile.value - 0.5) + ' + ½h')
-        : tile.value;
-
-      if (tile.isHalf) d.classList.add('half-tile');
-
-      // Zaznaczenie wybranej kafelki
-      if (tile.isHalf && currentEntry.half && currentEntry.hours + 0.5 === tile.value) d.classList.add('selected');
-      if (!tile.isHalf && currentEntry.hours === tile.value && !currentEntry.half) d.classList.add('selected');
-
-      // Obsługa kliknięć i dwukliku
-      d.onclick = () => {
+      // Obsługa dwukliku na połówce
+      halfBtn.onclick = () => {
         const now = Date.now();
-        if (
-          lastClickedHour === tile.value &&
-          now - lastClickTime < 700
-        ) {
-          currentEntry.hours = tile.isHalf ? tile.value - 0.5 : tile.value;
-          currentEntry.half = !!tile.isHalf;
+        if (lastClickedHour === i + 0.5 && now - lastClickTime < 700) {
+          currentEntry.hours = i;
+          currentEntry.half = true;
           document.getElementById('hourSection').style.display = 'none';
           tryFinishEntry();
           lastClickedHour = null;
           lastClickTime = 0;
           return;
         }
-        lastClickedHour = tile.value;
+        lastClickedHour = i + 0.5;
         lastClickTime = now;
-        currentEntry.hours = tile.isHalf ? tile.value - 0.5 : tile.value;
-        currentEntry.half = !!tile.isHalf;
+        currentEntry.half = !currentEntry.half;
         renderHourTiles();
       };
-      rowDiv.appendChild(d);
-    });
-    c.appendChild(rowDiv);
-  });
-}
 
+      if (currentEntry.half) halfBtn.classList.add('selected');
+      c.appendChild(halfBtn);
+    }
+  }
+}
 
 
 
