@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.2</title>
+  <title>Rejestracja czasu pracy 1.21</title>
 
  <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client"></script>
@@ -307,7 +307,7 @@ button:hover, .back-button:hover {
 /* ———— GODZINY ———— */
 .hour-options {
   display: grid;
-  grid-template-columns: repeat(9, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 10px;
   margin-top: 10px;
   width: 90%;
@@ -1841,9 +1841,6 @@ function startTaskTimer(entry) {
     updateTimerButtonVisibility();
 }
 
-
-
-
 // obsługa przycisku
 async function handleUpdateTasks() {
   if (!currentEntry?.category) return;
@@ -1868,7 +1865,7 @@ function renderHourTiles() {
   const c = document.getElementById('hourTiles');
   c.innerHTML = '';
 
-  for (let i = 1; i <= 16; i++) {
+  for (let i = 1; i <= 15; i++) {
     const d = document.createElement('div');
     d.className = 'tile';
     d.innerText = i;
