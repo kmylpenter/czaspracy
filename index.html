@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy v1.0</title>
+  <title>Rejestracja czasu pracy v1.1</title>
 
  <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client"></script>
@@ -120,7 +120,7 @@ h3 {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 120px;
+  width: 100px;
   height: 70px;
   white-space: normal;
   word-break: break-word;
@@ -175,10 +175,17 @@ h3 {
 
 /* Kafelki z godzinami (małe) */
 #step5 .hour-options .tile,
+/* KAFELKI GODZIN */
 #hourTiles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  width: auto;
+  height: auto;
+  flex: 0 0 calc(100%/9 - 5px);
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 65px;
+  max-height: 65px;
+  padding: 6px;
+  font-size: 1rem;
 }
 
 /* ———— BUTTONS ———— */
