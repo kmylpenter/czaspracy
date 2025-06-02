@@ -1850,40 +1850,106 @@ async function handleUpdateTasks() {
 
 
 
-    function renderHourTiles() {
-  const c = document.getElementById('hourTiles');
-  c.innerHTML = '';
-  // Dodajemy godzinowe kafelki
-  for (let i = 1; i <= 16; i++) {
-    const d = document.createElement('div');
-    d.className = 'tile';
-    d.innerText = i;
-    d.onclick = () => {
-      currentEntry.hours = i;
-      currentEntry.half = false; // usuwamy połówkę, jeśli była wcześniej
-      renderHourTiles();
-    };
-    // Podświetl jeśli wybrane
-    if (currentEntry.hours === i && !currentEntry.half) d.classList.add('selected');
-    c.appendChild(d);
+    // Przykładowe wartości godzin
+const hourOptions = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
-    // Jeśli ta godzina jest wybrana – pod spodem pokaż przycisk +½h
-    if (currentEntry.hours === i) {
-      const halfBtn = document.createElement('div');
-      halfBtn.className = 'tile';
-      halfBtn.innerText = currentEntry.half ? (i + 0.5) : (i + " + ½h");
-      halfBtn.style.background = '#f9a82633';
-      halfBtn.style.fontWeight = currentEntry.half ? 'bold' : 'normal';
-      halfBtn.onclick = () => {
-        currentEntry.half = !currentEntry.half;
+let hourSelection = []; // Np. [1, 0.5] dla 1,5h
+let lastClickedHour = null; // Ostatnio kliknięta wartość
+let lastClickTime = 0;
+
+
+let hourBaseSelected = null; // np. 2
+
+function renderHourTiles() {
+  const container = document.getElementById("hourTiles");
+  container.innerHTML = "";
+
+  // Jeśli nie wybrano żadnej godziny – pokaż główne opcje
+  if (hourBaseSelected === null) {
+    for (let h = 1; h <= 16; h++) {
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.innerText = h + " h";
+      tile.onclick = () => {
+        hourBaseSelected = h;
         renderHourTiles();
       };
-      // Podświetlenie na połówkę
-      if (currentEntry.half) halfBtn.classList.add('selected');
-      c.appendChild(halfBtn);
+      container.appendChild(tile);
     }
+  } else {
+    // Po kliknięciu np. "2h" – pokaż "2h" i "2,5h"
+    [0, 0.5].forEach(half => {
+      const value = hourBaseSelected + half;
+      const label = half === 0 ? `${hourBaseSelected} h` : `${hourBaseSelected},5 h`;
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.innerText = label;
+      tile.onclick = () => {
+        // Zatwierdzamy wybór, przypisz do currentEntry
+        currentEntry.hours = value;
+        hourBaseSelected = null; // resetuj do stanu początkowego
+        document.getElementById('hourSection').style.display = 'none';
+        tryFinishEntry(); // lub przejście dalej
+      };
+      container.appendChild(tile);
+    });
+
+    // Dodaj opcję powrotu (np. strzałka w lewo)
+    const back = document.createElement("div");
+    back.className = "tile";
+    back.innerText = "↩️ Zmień godzinę";
+    back.onclick = () => {
+      hourBaseSelected = null;
+      renderHourTiles();
+    };
+    container.appendChild(back);
   }
 }
+
+
+
+function handleHourClick(val, isHalf = false) {
+  const now = Date.now();
+  if (lastClickedHour === val && now - lastClickTime < 700) { // Dwuklik (pod 0.7 sekundy)
+    // Potwierdzamy wybór (kończymy wybieranie godzin)
+    hourSelection.push(val);
+    proceedToNextStep();
+    // Reset do wyboru od nowa przy kolejnym wejściu
+    hourSelection = [];
+    lastClickedHour = null;
+    lastClickTime = 0;
+    return;
+  }
+
+  // Jeśli kliknięto inną wartość lub minęło za dużo czasu
+  lastClickedHour = val;
+  lastClickTime = now;
+
+  // Logika dodania pół godziny lub pełnej godziny
+  if (!isHalf) {
+    hourSelection = [val]; // Nadpisujemy wybór (pełna godzina)
+  } else {
+    // Jeśli kliknięto 0.5h po jakiejś pełnej godzinie, dokładamy do wyboru
+    if (hourSelection.length > 0 && hourSelection[0] % 1 === 0) {
+      hourSelection[1] = 0.5;
+    } else {
+      hourSelection = [0.5]; // Samodzielnie można wybrać 0.5h
+    }
+  }
+  renderHourTiles();
+}
+
+
+// Funkcja po zatwierdzeniu
+function confirmHourSelection() {
+  // Przejdź do kolejnego kroku, np. wyślij wartość, schowaj modal, itp.
+  alert("Wybrano " + selectedHours + "h");
+  // Możesz tu wykonać dowolne inne akcje
+}
+
+// Wywołujemy na start
+renderHourTiles();
+
 
 
 function tryFinishEntry() {
