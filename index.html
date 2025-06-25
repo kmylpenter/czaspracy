@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.27</title>
+  <title>Rejestracja czasu pracy 1.28</title>
   <style>
 
 :root {
@@ -497,25 +497,26 @@ function updateSummaryButtonVisibility() {
   btn.style.display = timerMode ? 'inline-block' : 'none';
 }
 
-// ———— UNIWERSALNY WRAPPER Z LOGOWANIEM GOOGLE ————
-async function sendTelegramApiRequest(method, data = {}) {
-  const TELEGRAM_BOT_TOKEN = 'TU_WSTAW_TOKEN_BOTA_TELEGRAM';
-  const TELEGRAM_CHAT_ID = 'TU_WSTAW_CHAT_ID';
-  
-  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`;
+// ===========================================
+// WYWOŁANIE BACKENDU (Twój Apps Script WebApp)
+// ===========================================
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxy0z5Q-douCQokKqBpgv64lQTbAErADo6e5RfCntogHF2ViLYNmKTMBenAzwbuA8H7/exec';
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, ...data }),
-  });
-
-  const result = await response.json();
-  if (!result.ok) {
-    throw new Error(`Telegram API error: ${result.description}`);
+async function sendTelegramApiRequest(action, data = {}) {
+  try {
+    const res = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    if (payload.error) throw new Error(payload.error);
+    return payload.result;
+  } catch (e) {
+    console.error(`Błąd połączenia z backendem [${action}]:`, e);
+    throw e;
   }
-
-  return result.result;
 }
 
 
