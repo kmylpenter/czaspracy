@@ -453,6 +453,27 @@ button:hover, .back-button:hover {
     <button onclick="submitData()">Zapisz</button>
   </div>
 
+<script>
+// Upewnij się, że wszystkie Twoje funkcje są dostępne globalnie:
+window.goBack            = goBack;
+window.handleAddCustom   = handleAddCustom;
+window.showRecentEntries = showRecentEntries;
+window.handleTimerToggle = handleTimerToggle;
+window.goToSummary       = goToSummary;
+
+// A teraz podłącz event listenery:
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('backBtn').addEventListener('click', goBack);
+  document.getElementById('addBtn').addEventListener('click', handleAddCustom);
+  document.getElementById('viewEntriesBtn').addEventListener('click', showRecentEntries);
+  document.getElementById('timer-toggle-btn').addEventListener('click', handleTimerToggle);
+  document.getElementById('go-summary-btn').addEventListener('click', goToSummary);
+  
+  // I wreszcie wywołaj funkcję startową, żeby wczytać kafelki (imiona itp.)
+  resetForm();
+});
+</script>
+
   <script>
 // Wstaw do funkcji updateTimerButtonVisibility:
 function updateTimerButtonVisibility() {
@@ -2161,26 +2182,8 @@ function goToSummary() {
   else renderFullSummary();
 }
 
-<script>
-// Upewnij się, że wszystkie Twoje funkcje są dostępne globalnie:
-window.goBack            = goBack;
-window.handleAddCustom   = handleAddCustom;
-window.showRecentEntries = showRecentEntries;
-window.handleTimerToggle = handleTimerToggle;
-window.goToSummary       = goToSummary;
 
-// A teraz podłącz event listenery:
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('backBtn').addEventListener('click', goBack);
-  document.getElementById('addBtn').addEventListener('click', handleAddCustom);
-  document.getElementById('viewEntriesBtn').addEventListener('click', showRecentEntries);
-  document.getElementById('timer-toggle-btn').addEventListener('click', handleTimerToggle);
-  document.getElementById('go-summary-btn').addEventListener('click', goToSummary);
-  
-  // I wreszcie wywołaj funkcję startową, żeby wczytać kafelki (imiona itp.)
-  resetForm();
-});
-</script>
+
 
 </body>
 </html>
