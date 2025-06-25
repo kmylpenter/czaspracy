@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.31</title>
+  <title>Rejestracja czasu pracy 1.32</title>
   <style>
 
 :root {
@@ -640,6 +640,7 @@ function saveOldTimerToSheet(worker, dayStr) {
 
 // ————— ZAMIENNIK showRecentEntries —————
 async function showRecentEntries() {
+window.showRecentEntries = async function() {
   try {
     const entries = await sendTelegramApiRequest('getRecentEntries', { days: 7 });
 
@@ -689,11 +690,11 @@ async function showRecentEntries() {
     const container = document.createElement('div');
     container.innerHTML = html;
     document.body.appendChild(container);
-  } catch (e) {
-    console.error("Błąd pobierania wpisów:", e);
+} catch (err) {
+    console.error("Błąd pobierania wpisów:", err);
     showToast("Nie udało się pobrać wpisów", true);
   }
-}
+};
 
 
 // Helpers: dostajesz i zapisujesz listę projektów w localStorage
