@@ -3,11 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Rejestracja czasu pracy 1.26</title>
-
- <script src="https://apis.google.com/js/api.js"></script>
-<script src="https://accounts.google.com/gsi/client"></script>
-
-
   <style>
 
 :root {
@@ -389,6 +384,9 @@ button:hover, .back-button:hover {
     
   </style>
 </head>
+
+/*Fragment 1 Koniec*/
+
 <body>
 <h3 id="clock" style="margin-top: 0;"></h3>
 <div id="toast"></div>
@@ -428,7 +426,7 @@ button:hover, .back-button:hover {
 
 
   <div class="screen" id="step3">
-<button onclick="fetchCategoriesFromSheet()">🔄 Aktualizuj kategorie</button>
+<button onclick="fetchCategoriesFromBackend()">🔄 Aktualizuj kategorie</button>
     <div class="grid" id="categories"></div>
     <div id="add-category-container" style="text-align:center;">
          </div>
@@ -500,50 +498,26 @@ function updateSummaryButtonVisibility() {
 }
 
 // ———— UNIWERSALNY WRAPPER Z LOGOWANIEM GOOGLE ————
-async function withAuthRequest(fn) {
-  try {
-    if (!gapi.client.getToken()) {
-      try {
-        // Cicha próba (prompt: '')
-        await new Promise((resolve, reject) => {
-          tokenClient.callback = (resp) => {
-            if (resp.error) reject(resp.error);
-            else resolve();
-          };
-          tokenClient.requestAccessToken({ prompt: '' }); // <= najpierw cicho
-        });
-      } catch (err) {
-        // Jeśli nie działa – pokaż wybór konta
-        await new Promise((resolve, reject) => {
-          tokenClient.callback = (resp) => {
-            if (resp.error) reject(resp.error);
-            else resolve();
-          };
-          tokenClient.requestAccessToken({ prompt: 'consent select_account' });
-        });
-      }
-    }
-    return await fn();
-  } catch (e) {
-    if (
-      e.status === 401 ||
-      e.status === 403 ||
-      (e.result && e.result.error && e.result.error.code === 401)
-    ) {
-      // Jeszcze raz – ale tym razem z wymuszeniem prompta
-      await new Promise((resolve, reject) => {
-        tokenClient.callback = (resp) => {
-          if (resp.error) reject(resp.error);
-          else resolve();
-        };
-        tokenClient.requestAccessToken({ prompt: 'consent select_account' });
-      });
-      return await fn();
-    } else {
-      throw e;
-    }
+async function sendTelegramApiRequest(method, data = {}) {
+  const TELEGRAM_BOT_TOKEN = 'TU_WSTAW_TOKEN_BOTA_TELEGRAM';
+  const TELEGRAM_CHAT_ID = 'TU_WSTAW_CHAT_ID';
+  
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, ...data }),
+  });
+
+  const result = await response.json();
+  if (!result.ok) {
+    throw new Error(`Telegram API error: ${result.description}`);
   }
+
+  return result.result;
 }
+
 
 
 
@@ -667,78 +641,61 @@ function saveOldTimerToSheet(worker, dayStr) {
 // ————— ZAMIENNIK showRecentEntries —————
 async function showRecentEntries() {
   try {
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const entries = await sendTelegramApiRequest('getRecentEntries', { days: 7 });
 
-    const res = await withAuthRequest(() =>
-      gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME_SAVE}!A2:F`,
-      })
-    );
-    const allEntries = res.result.values || [];
-    const enriched = allEntries.map((row, i) => ({
-      data: row,
-      rowIndex: i + 2
-    }));
-
-    const recent = enriched.filter(obj => {
-      const d = new Date(obj.data[0]);
-      return !isNaN(d) && d >= oneWeekAgo;
-    });
-
-    // 4) budujemy tabelę z dodatkową kolumną „Edytuj”
     const html = `
-  <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
-              background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
-              max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
-              <div style="text-align:center; margin-top:10px;">
-      <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
-    </div>
-    <h3>Ostatnie wpisy</h3>
-    <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Pracownik</th>
-          <th>Projekt</th>
-          <th>Kategoria</th>
-          <th>Zadanie</th>
-          <th>Godziny</th>
-          <th>Edytuj</th>
-          <th>Usuń</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${recent.reverse().map(obj => `
-          <tr>
-            ${obj.data.map((col, colIdx) =>
-              `<td>${colIdx === 5 ? formatSecondsToHhMm(col) : col}</td>`
-            ).join('')}
-            <td>
-              <button onclick="editEntry(${obj.rowIndex})">✏️</button>
-            </td>
-            <td>
-              <button onclick="deleteEntry(${obj.rowIndex})" style="color:red;">🗑️</button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-    
-  </div>
-`;
+      <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
+        background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+        max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
+        <div style="text-align:center; margin-top:10px;">
+          <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
+        </div>
+        <h3>Ostatnie wpisy</h3>
+        <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Pracownik</th>
+              <th>Projekt</th>
+              <th>Kategoria</th>
+              <th>Zadanie</th>
+              <th>Godziny</th>
+              <th>Edytuj</th>
+              <th>Usuń</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${entries.map(entry => `
+              <tr>
+                <td>${entry.data}</td>
+                <td>${entry.pracownik}</td>
+                <td>${entry.projekt}</td>
+                <td>${entry.kategoria}</td>
+                <td>${entry.zadanie}</td>
+                <td>${formatSecondsToHhMm(entry.godziny)}</td>
+                <td>
+                  <button onclick="editEntry(${entry.id})">✏️</button>
+                </td>
+                <td>
+                  <button onclick="deleteEntry(${entry.id})" style="color:red;">🗑️</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
 
-    // wstrzyknięcie
     const container = document.createElement('div');
     container.innerHTML = html;
     document.body.appendChild(container);
-
   } catch (e) {
     console.error("Błąd pobierania wpisów:", e);
     showToast("Nie udało się pobrać wpisów", true);
   }
 }
+
+
 // Helpers: dostajesz i zapisujesz listę projektów w localStorage
 function getCachedProjects() {
   try { return JSON.parse(localStorage.getItem('projekty')||'[]') }
@@ -789,7 +746,7 @@ function renderOldTimerSummary(worker, dayStr) {
   renderFullSummary(worker, dayStr);
 }
 
-
+/* Koniec fragmentu 2*/
 
 
 function getCachedTasks() {
@@ -801,24 +758,11 @@ function setCachedTasks(obj) {
 }
 
 // pobierz WSZYSTKIE zadania raz z arkusza, pogrupuj po kategorii
-async function fetchTasksFromSheet() {
-  if (!gapiInited) return {};
+async function fetchTasksFromBackend() {
   try {
-    const res = await withAuthRequest(() =>
-      gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `NoweZadania!A2:B`
-      })
-    );
-    const rows = res.result.values || [];
-    const tasksByCat = {};
-    rows.forEach(([cat, task]) => {
-      if (cat && task) {
-        if (!tasksByCat[cat]) tasksByCat[cat] = [];
-        if (!tasksByCat[cat].includes(task)) tasksByCat[cat].push(task);
-      }
-    });
+    const tasksByCat = await sendTelegramApiRequest('getTasks');
     setCachedTasks(tasksByCat);
+
     if (currentStep === 4 && currentEntry?.category) {
       const list = tasksByCat[currentEntry.category] || [];
       renderTiles('subcategories', list, subcat => {
@@ -826,7 +770,7 @@ async function fetchTasksFromSheet() {
         document.getElementById('hourSection').style.display = 'block';
       });
     }
-    showToast("Zadania zaktualizowane z arkusza");
+    showToast("Zadania zaktualizowane z backendu");
     return tasksByCat;
   } catch (e) {
     console.error("Błąd pobierania zadań:", e);
@@ -834,6 +778,7 @@ async function fetchTasksFromSheet() {
     return {};
   }
 }
+
 
 
 // Pobierz z localStorage lub []  
@@ -889,7 +834,7 @@ async function resetForm() {
   loadProjectsFromStorage();
   // ⬇⬇⬇ To jest kluczowe
   if (gapiInited) {
-    await fetchCategoriesFromSheet(); // ⬅⬅⬅ poczekaj na pobranie zanim cokolwiek dalej!
+    await fetchCategoriesFromBackend(); // ⬅⬅⬅ poczekaj na pobranie zanim cokolwiek dalej!
   } else {
     setTimeout(resetForm, 250);
     return;
@@ -938,22 +883,21 @@ function formatSecondsHMS(sec) {
 async function actuallySubmitPendingData() {
   const pending = localStorage.getItem("pendingSave");
   if (!pending) return;
+  
   try {
     const { values } = JSON.parse(pending);
-    await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME_SAVE}!A1`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      resource: { values }
-    });
+
+    await sendTelegramApiRequest('submitEntries', { entries: values });
+
     localStorage.removeItem("pendingSave");
     showToast("Udało się zapisać zaległe dane!");
     resetForm();
   } catch (err) {
+    console.error("Błąd zapisu zaległych danych:", err);
     showToast("Dalej nie udało się zapisać! Twoje dane są bezpieczne.", true);
   }
 }
+
 
 
 
@@ -993,15 +937,11 @@ function getTimerState(worker) {
     return data.timerState || "off";
 }
 
-async function deleteEntry(rowIndex) {
+async function deleteEntry(entryId) {
   if (!confirm("Czy na pewno chcesz usunąć ten wpis? Tej operacji nie można cofnąć.")) return;
+  
   try {
-    await withAuthRequest(() =>
-      gapi.client.sheets.spreadsheets.values.clear({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME_SAVE}!A${rowIndex}:F${rowIndex}`
-      })
-    );
+    await sendTelegramApiRequest('deleteEntry', { entry_id: entryId });
     showToast("Wpis został usunięty.");
     document.getElementById('entries-popup').remove();
     showRecentEntries();
@@ -1012,53 +952,58 @@ async function deleteEntry(rowIndex) {
 }
 
 
-async function editEntry(rowIndex) {
-  // 1) Pobieramy starą wartość
-  const range = `${SHEET_NAME_SAVE}!A${rowIndex}:F${rowIndex}`;
-  const getRes = await withAuthRequest(() =>
-    gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range
-    })
-  );
-  const old = getRes.result.values?.[0] || [];
-  const headers = ['Data','Pracownik','Projekt','Kategoria','Zadanie','Godziny'];
 
-  // 2) Pytamy usera o nowe wartości
-  const updated = old.map((val,i) => {
-  if (headers[i] === "Godziny") {
-    // Zamień sekundy na godziny, podpowiedz w prompt
-    const godziny = (parseInt(val, 10) / 3600).toLocaleString('pl-PL', {maximumFractionDigits: 2});
-    const inp = prompt(`Nowa wartość dla ${headers[i]} (w godzinach, np. 1,5):`, godziny);
-    if (inp == null) return val; // Anulowane
-    // Zamiana stringa z przecinkiem na kropkę i na liczbe
-    let h = parseFloat(inp.replace(',', '.'));
-    if (isNaN(h) || h < 0) h = 0;
-    return Math.round(h * 3600); // Zamień na sekundy do Google Sheets
-  } else {
-    const inp = prompt(`Nowa wartość dla ${headers[i]}:`, val);
-    return inp == null ? val : inp;
-  }
-});
+async function editEntry(entryId) {
+  try {
+    const entry = await sendTelegramApiRequest('getEntry', { entry_id: entryId });
+    const headers = ['Data', 'Pracownik', 'Projekt', 'Kategoria', 'Zadanie', 'Godziny'];
 
+    const updated = await Promise.all(headers.map(async (header) => {
+      if (header === "Godziny") {
+        const godziny = (entry.godziny / 3600).toLocaleString('pl-PL', { maximumFractionDigits: 2 });
+        const inp = prompt(`Nowa wartość dla ${header} (w godzinach, np. 1,5):`, godziny);
+        if (inp == null) return entry.godziny;
 
-  // 3) Funkcja, która robi faktyczny update
-  async function doUpdate() {
-    await withAuthRequest(() =>
-      gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
-        range,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values: [updated] }
-      })
-    );
+        let h = parseFloat(inp.replace(',', '.'));
+        if (isNaN(h) || h < 0) h = 0;
+        return Math.round(h * 3600);
+      } else {
+        const inp = prompt(`Nowa wartość dla ${header}:`, entry[header.toLowerCase()]);
+        return inp == null ? entry[header.toLowerCase()] : inp;
+      }
+    }));
+
+    await sendTelegramApiRequest('updateEntry', {
+      entry_id: entryId,
+      data: {
+        data: updated[0],
+        pracownik: updated[1],
+        projekt: updated[2],
+        kategoria: updated[3],
+        zadanie: updated[4],
+        godziny: updated[5]
+      }
+    });
+
     showToast("Zaktualizowano wpis");
     document.getElementById('entries-popup').remove();
     showRecentEntries();
+  } catch (e) {
+    console.error("Błąd aktualizacji wpisu:", e);
+    showToast("Nie udało się zaktualizować wpisu.", true);
   }
+}
 
-  // 4) Token zawsze już będzie odświeżony, więc tylko wywołuj:
-  await doUpdate();
+async function fetchProjectsFromBackend() {
+  try {
+    const projects = await sendTelegramApiRequest('getProjects');
+    setCachedProjects(projects);
+    renderProjects();
+    showToast("Projekty zaktualizowane");
+  } catch (e) {
+    console.error("Błąd pobierania projektów:", e);
+    showToast("Błąd pobierania projektów", true);
+  }
 }
 
 
@@ -1100,78 +1045,25 @@ updateClock();
     const SHEET_NAME_LOAD = "Projekty";
     const SHEET_NAME_SAVE = "CzasPracy";
 
-    // ————— ZMIENNE STANU OAuth —————
-    let tokenClient;
-    let gapiInited = false;
-    let gisInited  = false;
-
-    // ————— CALLBACKI ŁADOWANIA BIBLIOTEK —————
-    function gapiLoaded() {
-  gapi.load('client', () =>
-    gapi.client.init({ apiKey: API_KEY, discoveryDocs: DISCOVERY_DOCS })
-      .then(() => {
-        gapiInited = true;
-        resetForm(); // ← przenieś tutaj
-      })
-  );
 }
-
-
-function gisLoaded() {
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: (resp) => {
-      if (resp.error) {
-        console.error("Token error:", resp);
-        return;
-      }
-      actuallySubmitData();
-    }
-  });
-  gisInited = true;
-
-  // --- USUŃ TO CAŁE! ---
-  // Automatyczne odświeżanie tokena co 50 minut
-  // setInterval(() => {
-  //   if (gapiInited && gisInited) {
-  //     try {
-  //       tokenClient.requestAccessToken({ prompt: '' }); // <= KLUCZOWA ZMIANA: 'prompt: ''' zamiast 'none'
-  //       console.log("Token Google odświeżony automatycznie (po cichu).");
-  //     } catch(e) {
-  //       console.warn("Nie udało się odświeżyć tokena:", e);
-  //     }
-  //   }
-  // }, 50 * 60 * 1000);
-}
-
-
 
     // ————— DANE APLIKACJI —————
     const workers = ["Kamil","Paweł","Piotr","Przemek","Robert"];
 
-    async function fetchCategoriesFromSheet() {
-  if (!gapiInited) return;
+    async function fetchCategoriesFromBackend() {
   try {
     const baseCategories = ["Stal", "Drewno", "Montaż", "Biuro"];
-    const res = await withAuthRequest(() =>
-      gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `NoweKategorie!A2:A`
-      })
-    );
-    const newCategories = res.result.values?.flat() || [];
-    window.categories = Array.from(new Set([
-      ...baseCategories,
-      ...newCategories
-    ].filter(Boolean)));
+    const newCategories = await sendTelegramApiRequest('getCategories');
+    window.categories = Array.from(new Set([...baseCategories, ...newCategories]));
+
     renderTiles('categories', window.categories, selectCategory);
-    showToast("Kategorie zaktualizowane z arkusza");
+    showToast("Kategorie zaktualizowane z backendu");
   } catch (e) {
     console.error("Błąd pobierania kategorii:", e);
     showToast("Błąd aktualizacji kategorii", true);
   }
 }
+
 
 
 
@@ -1212,6 +1104,9 @@ function gisLoaded() {
 
 }
 
+
+/*Koniec fragmentu 3*/
+
 function selectCategory(category) {
   currentEntry.category = category;
   showStep(4);
@@ -1229,15 +1124,15 @@ function selectCategory(category) {
 
 
 
-// ————— Zaktualizowany handleAddCustom —————
-function handleAddCustom() {
+async function handleAddCustom() {
   if (currentStep === 2) { // Projekty
     const name = prompt("Podaj nazwę nowego projektu:");
     if (name && !projects.includes(name)) {
       projects.push(name);
       localStorage.setItem('projekty', JSON.stringify(projects));
       renderProjects();
-      saveNewItemToSheet(name, 'NoweProjekty');
+      await sendTelegramApiRequest('addProject', { project: name });
+      showToast("Nowy projekt dodany.");
     }
   }
 
@@ -1246,8 +1141,7 @@ function handleAddCustom() {
     if (name && !categories.includes(name)) {
       categories.push(name);
       renderTiles('categories', window.categories, selectCategory);
-
-      saveNewItemToSheet(name, 'NoweKategorie');
+      await sendTelegramApiRequest('addCategory', { category: name });
       showToast("Dodano nową kategorię");
     }
   }
@@ -1259,18 +1153,22 @@ function handleAddCustom() {
       list.push(name);
       subcategoriesMap[currentEntry.category] = list;
       renderTiles('subcategories', list, subcat => {
-  currentEntry.subcategory = subcat;
-  if (timerMode) {
-    startTaskTimer(currentEntry);
-  } else {
-    document.getElementById('hourSection').style.display = 'block';
-  }
-});
-
-      saveNewTaskToSheet(currentEntry.category, name);
+        currentEntry.subcategory = subcat;
+        if (timerMode) {
+          startTaskTimer(currentEntry);
+        } else {
+          document.getElementById('hourSection').style.display = 'block';
+        }
+      });
+      await sendTelegramApiRequest('addTask', {
+        category: currentEntry.category,
+        task: name
+      });
+      showToast("Nowe zadanie dodane.");
     }
   }
 }
+
 
 
 async function handleAddCategory() {
@@ -1278,17 +1176,19 @@ async function handleAddCategory() {
   if (!name) return;
   if (!categories.includes(name)) {
     categories.push(name);
-    await saveNewItemToSheet(name, 'NoweKategorie');
-    await fetchCategoriesFromSheet();  // ← dodać to
+    await sendTelegramApiRequest('addCategory', { category: name });
+    await fetchCategoriesFromBackend();
     renderTiles('categories', window.categories, category => {
       currentEntry.category = category;
       showStep(4);
-      const staticList = subcategoriesMap[category]||[];
-      const cached = getCachedTasks()[category]||[];
-      renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
-        currentEntry.subcategory = subcat;
-        document.getElementById('hourSection').style.display = 'block';
-      });
+      renderTiles(
+        'subcategories',
+        subcategoriesMap[category] || [],
+        subcat => {
+          currentEntry.subcategory = subcat;
+          document.getElementById('hourSection').style.display = 'block';
+        }
+      );
     });
     showToast("Dodano nową kategorię");
   } else {
@@ -1298,37 +1198,10 @@ async function handleAddCategory() {
 
 
 
-async function saveNewItemToSheet(value, sheetName) {
-  if (!value || !sheetName || !gapiInited) return;
-
-  try {
-    await withAuthRequest(() =>
-      gapi.client.sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${sheetName}!A:A`,
-        valueInputOption: 'USER_ENTERED',
-        insertDataOption: 'INSERT_ROWS',
-        resource: { values: [[value]] }
-      })
-    );
-    showToast("Zapisano nową pozycję");
-  } catch (err) {
-    console.error("Błąd zapisu nowej pozycji:", err);
-    showToast("Błąd zapisu nowej pozycji", true);
-  }
-}
-
-
-
-    function goBack() {
-      if (currentStep > 1) showStep(currentStep - 1);
-    }
 
 async function fetchWorkerStatuses() {
-  const statusMap = {};
   const todayStr = new Date().toISOString().split("T")[0];
 
-  // Spróbuj wczytać z cache
   const cached = localStorage.getItem("workerStatusCache");
   if (cached) {
     try {
@@ -1342,43 +1215,21 @@ async function fetchWorkerStatuses() {
   }
 
   try {
-    const res = await withAuthRequest(() =>
-      gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME_SAVE}!A2:F`,
-      })
-    );
-
-    const entries = res.result.values || [];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-    workers.forEach(worker => {
-      const hasToday = entries.some(row =>
-        row[0]?.startsWith(todayStr) && row[1] === worker
-      );
-      const hasYesterday = entries.some(row =>
-        row[0]?.startsWith(yesterdayStr) && row[1] === worker
-      );
-
-      if (hasToday) statusMap[worker] = "green";
-      else if (hasYesterday) statusMap[worker] = "yellow";
-      else statusMap[worker] = "red";
-    });
+    const statusMap = await sendTelegramApiRequest('getWorkerStatuses');
 
     localStorage.setItem("workerStatusCache", JSON.stringify({
       date: todayStr,
       statusMap
     }));
 
+    return statusMap;
   } catch (e) {
     console.error("Błąd pobierania statusów pracowników:", e);
     showToast("Nie udało się sprawdzić, kto się wpisał.", true);
+    return {};
   }
-
-  return statusMap;
 }
+
 
 
 
@@ -1429,36 +1280,35 @@ console.log("Rendertiles", { containerId, items, statusMap });
 
     async function resetForm() {
   state = { worker: null, entries: [], summaryDate: null };
-
   loadProjectsFromStorage();
-  // *** NIE CZEKAJ na gapiInited tylko spróbuj zawsze pobrać kategorie z arkusza ***
-  if (gapiInited) {
-    await fetchCategoriesFromSheet();
-  } else {
-    // próbuj aż się załaduje!
+
+  try {
+    await fetchCategoriesFromBackend();
+  } catch (e) {
+    console.warn("Błąd ładowania kategorii z backendu:", e);
     setTimeout(resetForm, 250);
     return;
   }
 
-  const statusMap = await fetchWorkerStatuses();
+  const statusMap = await fetchWorkerStatuses(); // upewnij się, że backend obsługuje odpowiednią metodę
   showStep(1);
   renderTiles('workers', workers, worker => {
-  state.worker = worker;
-console.log("Kliknięto pracownika:", worker);
-console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
+    state.worker = worker;
 
-  const oldTimers = loadTimerDataForWorker(worker);
-  if (oldTimers.length > 0) {
-    showPendingTimersScreen(oldTimers, worker);  // <-- już działa
-    return;
-  }
-  showStep(2);
-  renderProjects();
-  updateTimerButtonVisibility();
-}, statusMap);
+    if (checkOvernightTimer(worker)) return;
 
+    const oldTimers = loadTimerDataForWorker(worker);
+    if (oldTimers.length > 0) {
+      showPendingTimersScreen(oldTimers, worker);
+      return;
+    }
 
+    showStep(2);
+    renderProjects();
+    updateTimerButtonVisibility();
+  }, statusMap);
 }
+
 
     // ————— DYNAMICZNE TILES —————
     function addCustomProject() {
@@ -1482,26 +1332,11 @@ console.log("Znaleziono stare timery:", loadTimerDataForWorker(worker));
       document.getElementById('projects').appendChild(t);
     }
 
-// ————— NOWA funkcja do zapisu nowych zadań w dwóch kolumnach (kategoria + nazwa) —————
-async function saveNewTaskToSheet(category, taskName) {
-  if (!category || !taskName || !gapiInited) return;
-  try {
-    await withAuthRequest(() =>
-      gapi.client.sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `NoweZadania!A:B`, // kolumna A = kategoria, B = zadanie
-        valueInputOption: 'USER_ENTERED',
-        insertDataOption: 'INSERT_ROWS',
-        resource: { values: [[category, taskName]] }
-      })
-    );
-    showToast("Zapisano nowe zadanie");
-  } catch (err) {
-    console.error("Błąd zapisu nowego zadania:", err);
-    showToast("Błąd zapisu nowego zadania", true);
-  }
-}
 
+
+function submitData() {
+  actuallySubmitData();
+}
 
 
     // ————— Modyfikacja selectProject → wybór kategorii → krok 4 —————
@@ -1510,52 +1345,31 @@ function selectProject(project) {
   updateRecentProjects(project);
   currentEntry = { project, category: null, subcategory: null, hours: 0 };
 
-  // --- NOWE: obsługa trybu timera ---
-  if (timerMode) {
-    showStep(3);
-    fetchCategoriesFromSheet().then(() => {
-      renderTiles('categories', window.categories, cat => {
-        currentEntry.category = cat;
-        showStep(4);
-        const staticList = subcategoriesMap[cat] || [];
-        const cached = getCachedTasks()[cat] || [];
-        renderTiles(
-          'subcategories',
-          Array.from(new Set([...staticList, ...cached])),
-          subcat => {
-            currentEntry.subcategory = subcat;
-            // --- START TIMERA ---
-            startTaskTimer(currentEntry);
-          }
-        );
-      });
-    });
-    return; // NIE kontynuuj starej ścieżki!
-  }
-
-  // --- Stary tryb normalny ---
   showStep(3);
-  fetchCategoriesFromSheet().then(() => {
+  fetchCategoriesFromBackend().then(() => {
     renderTiles('categories', window.categories, cat => {
       currentEntry.category = cat;
       showStep(4);
-      const staticList = subcategoriesMap[cat] || [];
-      const cached = getCachedTasks()[cat] || [];
-      renderTiles(
-        'subcategories',
-        Array.from(new Set([...staticList, ...cached])),
-        subcat => {
+      fetchTasksFromBackend().then(tasksByCat => {
+        const list = Array.from(new Set([
+          ...(subcategoriesMap[cat] || []),
+          ...(tasksByCat[cat] || [])
+        ]));
+
+        renderTiles('subcategories', list, subcat => {
           currentEntry.subcategory = subcat;
           if (timerMode) {
             startTaskTimer(currentEntry);
           } else {
             document.getElementById('hourSection').style.display = 'block';
           }
-        }
-      );
+        });
+      });
     });
   });
 }
+
+
 
 
 
@@ -1597,6 +1411,7 @@ function toggleStartStopTimer() {
     updateTimerButtonVisibility();
 }
 
+/*Koniec fragmentu 4*/
 
 function renderFullSummary(workerOverride = null, dateStrOverride = null) {
   state.summaryDate = dateStrOverride || getDayString();
@@ -1844,17 +1659,20 @@ function startTaskTimer(entry) {
 // obsługa przycisku
 async function handleUpdateTasks() {
   if (!currentEntry?.category) return;
-  const tasksByCat = await fetchTasksFromSheet();
+  
+  const tasksByCat = await fetchTasksFromBackend();
   const list = Array.from(new Set([
-    ...(subcategoriesMap[currentEntry.category]||[]),
-    ...(tasksByCat[currentEntry.category]||[])
+    ...(subcategoriesMap[currentEntry.category] || []),
+    ...(tasksByCat[currentEntry.category] || [])
   ]));
+
   renderTiles('subcategories', list, subcat => {
     currentEntry.subcategory = subcat;
     document.getElementById('hourSection').style.display = 'block';
   });
   showToast("Zadania zaktualizowane");
 }
+
 
 
 
@@ -2016,51 +1834,39 @@ function checkOvernightTimers(worker, dateStr) {
 
     // ————— ZAPIS DO SHEETS —————
     function submitData() {
-  if (!gapiInited || !gisInited) {
-    alert("Trwa inicjalizacja Google API, spróbuj za chwilę.");
-    return;
-  }
-  const tok = gapi.client.getToken();
-  if (!tok) {
-    // Zawsze najpierw „po cichu” (prompt: '')
-    tokenClient.requestAccessToken({ prompt: '' });
-  } else {
-    actuallySubmitData();
-  }
+  actuallySubmitData(); // already updated previously to use Telegram API
 }
 
 
    async function actuallySubmitData() {
   try {
     let values = [];
-    // — normalne wpisy (nie-timerowe)
+
     if (state.entries && state.entries.length) {
-      values = state.entries.map(e => [
-        formatDateForSheets(new Date()),
-        state.worker,
-        e.project,
-        e.category,
-        e.subcategory,
-        (typeof e.hours === "number") ? e.hours * 3600 : 0 // zamień na sekundy
-      ]);
+      values = state.entries.map(e => ({
+        date: formatDateForSheets(new Date()),
+        worker: state.worker,
+        project: e.project,
+        category: e.category,
+        subcategory: e.subcategory,
+        hours: (typeof e.hours === "number") ? e.hours * 3600 : 0
+      }));
     }
 
-    // — wpisy z timera:
     const dateStr = state.summaryDate || getDayString();
     let data = getFullTimerData(state.worker, dateStr);
+
     if (data.sessions && data.sessions.length) {
       data.sessions.forEach(s => {
-        values.push([
-          formatDateForSheets(new Date(s.startTime)),
-          state.worker,
-          s.project,
-          s.category,
-          s.subcategory,
-          Math.floor(s.duration || 0) // SECONDS
-        ]);
+        values.push({
+          date: formatDateForSheets(new Date(s.startTime)),
+          worker: state.worker,
+          project: s.project,
+          category: s.category,
+          subcategory: s.subcategory,
+          hours: Math.floor(s.duration || 0)
+        });
       });
-      // UWAGA: NIE kasuj localStorage na tym etapie!
-      // Kasujemy dopiero po sukcesie (poniżej)
     }
 
     if (!values.length) {
@@ -2068,67 +1874,27 @@ function checkOvernightTimers(worker, dateStr) {
       return;
     }
 
-    // ——— [NOWOŚĆ] ———
-    // Przed próbą zapisu do Google Sheets — ZAPISZ dane do localStorage!
-    localStorage.setItem("pendingSave", JSON.stringify({
-      values,
-      worker: state.worker,
-      date: new Date().toISOString()
-    }));
+    localStorage.setItem("pendingSave", JSON.stringify({ values }));
 
-    // Próba zapisu do Google Sheets
-    await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME_SAVE}!A1`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      resource: { values }
-    });
+    await sendTelegramApiRequest('submitEntries', { entries: values });
 
-    // ——— PO SUKCESIE ———
-    // Kasujemy zaległe dane, bo już są w arkuszu
     localStorage.removeItem("pendingSave");
-
-    // Czyścimy dane timerów tylko jeśli się powiodło!
     localStorage.removeItem(getTimerStorageKey(state.worker, dateStr));
-    // Usuń cache statusów, żeby przy resetForm() pobrać je na nowo
     localStorage.removeItem("workerStatusCache");
 
     resetForm();
     showToast("Dane zostały zapisane!");
   } catch (err) {
-    console.error("Błąd zapisu:", err);
-    // NIE kasujemy pendingSave! Dane zostają na następną próbę.
+    console.error("Błąd zapisu danych:", err);
     showToast("Błąd zapisu! Twoje dane są zachowane. Spróbuj ponownie.", true);
   }
 }
 
-
-
-
-    // ————— ZAMIENNIK fetchProjectsFromSheet —————
-async function fetchProjectsFromSheet() {
-  if (!gapiInited) return;
+async function fetchProjectsFromBackend() {
   try {
-    const [base, custom] = await Promise.all([
-      withAuthRequest(() =>
-        gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `${SHEET_NAME_LOAD}!A2:A`
-        })
-      ),
-      withAuthRequest(() =>
-        gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `NoweProjekty!A2:A`
-        })
-      )
-    ]);
-    const baseList   = base.result.values?.flat()   || [];
-    const customList = custom.result.values?.flat() || [];
-    window.projects = Array.from(new Set([...baseList, ...customList].filter(Boolean)));
+    window.projects = await sendTelegramApiRequest('getProjects');
     setCachedProjects(window.projects);
-    renderProjects(); 
+    renderProjects();
     showToast("Projekty zaktualizowane");
   } catch (e) {
     console.error("Błąd pobierania projektów:", e);
@@ -2136,6 +1902,8 @@ async function fetchProjectsFromSheet() {
   }
 }
 
+
+/*Koniec fragmentu 5*/
 
 // ————— NOWA funkcja pobierająca zadania z arkusza NoweZadania —————
 async function fetchSubcategoriesFromSheet(category) {
@@ -2343,7 +2111,6 @@ function handleTimerToggle() {
 }
 
 
-
 function goToSummary() {
   showStep(5);
   if (timerMode) renderFullSummary();
@@ -2371,8 +2138,6 @@ function goToSummary() {
     // wymuszone otwarcie
     eruda.show();
   });
-gapiLoaded();
-gisLoaded();
 </script>
 
 
