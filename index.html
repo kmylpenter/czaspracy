@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.35</title>
+  <title>Rejestracja czasu pracy 1.36</title>
   <style>
 
 :root {
@@ -2163,22 +2163,24 @@ function goToSummary() {
   else renderFullSummary();
 }
 
-// Upewnij się, że wszystkie Twoje funkcje są dostępne globalnie:
+</script>  <!-- ZAMYKA główny skrypt -->
+
+<script>
+// Teraz już w czystym scope HTMLu:
 window.goBack            = goBack;
 window.handleAddCustom   = handleAddCustom;
 window.showRecentEntries = showRecentEntries;
 window.handleTimerToggle = handleTimerToggle;
 window.goToSummary       = goToSummary;
 
-// A teraz podłącz event listenery:
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('backBtn').addEventListener('click', goBack);
   document.getElementById('addBtn').addEventListener('click', handleAddCustom);
   document.getElementById('viewEntriesBtn').addEventListener('click', showRecentEntries);
   document.getElementById('timer-toggle-btn').addEventListener('click', handleTimerToggle);
   document.getElementById('go-summary-btn').addEventListener('click', goToSummary);
-  
-  // I wreszcie wywołaj funkcję startową, żeby wczytać kafelki (imiona itp.)
+
+  // Uruchom inicjalizację kafelków
   resetForm();
 });
 </script>
