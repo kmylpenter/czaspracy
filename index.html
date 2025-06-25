@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.33</title>
+  <title>Rejestracja czasu pracy 1.34</title>
   <style>
 
 :root {
@@ -390,11 +390,11 @@ button:hover, .back-button:hover {
 <div id="toast"></div>
 
  <div class="nav-bar" id="backButtonContainer">
-  <button class="back-button" id="backBtn" onclick="goBack()">⬅ Wstecz</button>
-  <button id="addBtn" class="back-button" style="margin-left: 10px;" onclick="handleAddCustom()">➕ Dodaj</button>
-  <button class="back-button" id="viewEntriesBtn" onclick="showRecentEntries()">📋 Zobacz wpisy</button>
-  <button id="timer-toggle-btn" onclick="handleTimerToggle()" style="display:none; margin-left:10px;">⏱ Timer</button>
-  <button id="go-summary-btn" class="back-button" onclick="goToSummary()" style="display:none;">📊 Podsumowanie</button>
+  <button class="back-button" id="backBtn">⬅ Wstecz</button>
+  <button id="addBtn" class="back-button" style="margin-left: 10px;">➕ Dodaj</button>
+  <button class="back-button" id="viewEntriesBtn">📋 Zobacz wpisy</button>
+  <button id="timer-toggle-btn" style="display:none; margin-left:10px;">⏱ Timer</button>
+  <button id="go-summary-btn" class="back-button" style="display:none;">📊 Podsumowanie</button>
 </div>
 
 
@@ -2160,5 +2160,27 @@ function goToSummary() {
   if (timerMode) renderFullSummary();
   else renderFullSummary();
 }
+
+<script>
+// Upewnij się, że wszystkie Twoje funkcje są dostępne globalnie:
+window.goBack            = goBack;
+window.handleAddCustom   = handleAddCustom;
+window.showRecentEntries = showRecentEntries;
+window.handleTimerToggle = handleTimerToggle;
+window.goToSummary       = goToSummary;
+
+// A teraz podłącz event listenery:
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('backBtn').addEventListener('click', goBack);
+  document.getElementById('addBtn').addEventListener('click', handleAddCustom);
+  document.getElementById('viewEntriesBtn').addEventListener('click', showRecentEntries);
+  document.getElementById('timer-toggle-btn').addEventListener('click', handleTimerToggle);
+  document.getElementById('go-summary-btn').addEventListener('click', goToSummary);
+  
+  // I wreszcie wywołaj funkcję startową, żeby wczytać kafelki (imiona itp.)
+  resetForm();
+});
+</script>
+
 </body>
 </html>
