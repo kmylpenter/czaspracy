@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.29</title>
+  <title>Rejestracja czasu pracy 1.30</title>
   <style>
 
 :root {
@@ -518,6 +518,53 @@ async function sendTelegramApiRequest(action, data = {}) {
 }
 
 
+// ————— UI: POKAZANIE OSTATNICH WPISÓW —————
+async function showRecentEntries() {
+  try {
+    // days: 7 — możesz zmienić, ile dni wstecz chcesz pobierać
+    const entries = await sendTelegramApiRequest('getRecentEntries', { days: 7 });
+
+    const html = `
+      <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
+           background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+           max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
+        <div style="text-align:center; margin-top:10px;">
+          <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
+        </div>
+        <h3>Ostatnie wpisy</h3>
+        <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
+          <thead>
+            <tr>
+              <th>Data</th><th>Pracownik</th><th>Projekt</th>
+              <th>Kategoria</th><th>Zadanie</th><th>Godziny</th>
+              <th>Edytuj</th><th>Usuń</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${entries.map(e => `
+              <tr>
+                <td>${e.data}</td>
+                <td>${e.pracownik}</td>
+                <td>${e.projekt}</td>
+                <td>${e.kategoria}</td>
+                <td>${e.zadanie}</td>
+                <td>${formatSecondsToHhMm(e.godziny)}</td>
+                <td><button onclick="editEntry(${e.id})">✏️</button></td>
+                <td><button onclick="deleteEntry(${e.id})" style="color:red;">🗑️</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+  } catch (err) {
+    console.error("Błąd pobierania wpisów:", err);
+    showToast("Nie udało się pobrać wpisów", true);
+  }
+}
 
 
 
