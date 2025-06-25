@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Rejestracja czasu pracy 1.32</title>
+  <title>Rejestracja czasu pracy 1.33</title>
   <style>
 
 :root {
@@ -1829,16 +1829,14 @@ function checkOvernightTimers(worker, dateStr) {
   });
 }
 
-// ————— UI: POKAZANIE OSTATNICH WPISÓW —————
-async function showRecentEntries() {
+window.showRecentEntries = async function() {
   try {
-    // days: 7 — możesz zmienić, ile dni wstecz chcesz pobierać
     const entries = await sendTelegramApiRequest('getRecentEntries', { days: 7 });
 
     const html = `
       <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
-           background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
-           max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
+        background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+        max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
         <div style="text-align:center; margin-top:10px;">
           <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
         </div>
@@ -1875,7 +1873,8 @@ async function showRecentEntries() {
     console.error("Błąd pobierania wpisów:", err);
     showToast("Nie udało się pobrać wpisów", true);
   }
-}
+};
+
 
     // ————— ZAPIS DO SHEETS —————
     function submitData() {
