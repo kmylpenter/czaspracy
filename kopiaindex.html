@@ -829,41 +829,6 @@ const recent = getRecentProjects().slice(0,5);
   addCustomProjectTile();
 }
 
-
-
-// w resetForm: od razu z cache’u, bez fetcha
-async function resetForm() {
-  state = { worker: null, entries: [] };
-  loadProjectsFromStorage();
-  // ⬇⬇⬇ To jest kluczowe
-  if (gapiInited) {
-    await fetchCategoriesFromBackend(); // ⬅⬅⬅ poczekaj na pobranie zanim cokolwiek dalej!
-  } else {
-    setTimeout(resetForm, 250);
-    return;
-  }
-  const statusMap = await fetchWorkerStatuses();
-  showStep(1);
-  renderTiles('workers', workers, worker => {
-  state.worker = worker;
-  // 1. Najpierw sprawdzamy overnight timer
-  if (checkOvernightTimer(worker)) {
-    return; // wyświetlił popup, nie idź dalej!
-  }
-  // 2. Jeśli nie overnight, sprawdzamy stare timery
-  const oldTimers = loadTimerDataForWorker(worker);
-  if (oldTimers.length > 0) {
-    showPendingTimersScreen(oldTimers, worker);
-    return;
-  }
-  showStep(2);
-  renderProjects();
-  updateTimerButtonVisibility();
-}, statusMap);
-
-}
-
-
 function checkPendingSave() {
   const pending = localStorage.getItem("pendingSave");
   if (pending) {
@@ -1279,35 +1244,35 @@ console.log("Rendertiles", { containerId, items, statusMap });
     }
 
     async function resetForm() {
-  state = { worker: null, entries: [], summaryDate: null };
-  loadProjectsFromStorage();
+      state = { worker: null, entries: [], summaryDate: null };
+      loadProjectsFromStorage();
 
-  try {
-    await fetchCategoriesFromBackend();
-  } catch (e) {
-    console.warn("Błąd ładowania kategorii z backendu:", e);
-    setTimeout(resetForm, 250);
-    return;
-  }
+      try {
+        await fetchCategoriesFromBackend();
+      } catch (e) {
+        console.warn("Błąd ładowania kategorii z backendu:", e);
+        setTimeout(resetForm, 250);
+        return;
+      }
 
-  const statusMap = await fetchWorkerStatuses(); // upewnij się, że backend obsługuje odpowiednią metodę
-  showStep(1);
-  renderTiles('workers', workers, worker => {
-    state.worker = worker;
+        const statusMap = await fetchWorkerStatuses(); // upewnij się, że backend obsługuje odpowiednią metodę
+        showStep(1);
+        renderTiles('workers', workers, worker => {
+          state.worker = worker;
 
-    if (checkOvernightTimer(worker)) return;
+          if (checkOvernightTimer(worker)) return;
 
-    const oldTimers = loadTimerDataForWorker(worker);
-    if (oldTimers.length > 0) {
-      showPendingTimersScreen(oldTimers, worker);
-      return;
-    }
+          const oldTimers = loadTimerDataForWorker(worker);
+          if (oldTimers.length > 0) {
+            showPendingTimersScreen(oldTimers, worker);
+            return;
+          }
 
-    showStep(2);
-    renderProjects();
-    updateTimerButtonVisibility();
-  }, statusMap);
-}
+            showStep(2);
+            renderProjects();
+            updateTimerButtonVisibility();
+          }, statusMap);
+        }
 
 
     // ————— DYNAMICZNE TILES —————
@@ -2155,6 +2120,16 @@ function handleTimerToggle() {
     updateTimerButtonVisibility();
     renderFullSummary();
 }
+
+function goBack() {
+  if (currentStep > 1) {
+    showStep(currentStep - 1);
+  } else {
+    window.history.back();
+  }
+}
+window.goBack = goBack;
+document.getElementById('backBtn').onclick = goBack;
 
 
 function goToSummary() {
