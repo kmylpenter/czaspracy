@@ -497,27 +497,35 @@ function updateSummaryButtonVisibility() {
   btn.style.display = timerMode ? 'inline-block' : 'none';
 }
 
-// ===========================================
-// WYWOŁANIE BACKENDU (Twój Apps Script WebApp)
-// ===========================================
 const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxy0z5Q-douCQokKqBpgv64lQTbAErADo6e5RfCntogHF2ViLYNmKTMBenAzwbuA8H7/exec';
 
 async function sendTelegramApiRequest(action, data = {}) {
   try {
-    const res = await fetch(BACKEND_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, data })
+    // 1) zbuduj URL z parametrami action i opcjonalnie data
+    const url = new URL(BACKEND_URL);
+    url.searchParams.append('action', action);
+    // tylko jeśli są jakieś dane, dodajemy je jako JSON-string
+    if (Object.keys(data).length) {
+      url.searchParams.append('data', JSON.stringify(data));
+    }
+
+    // 2) proste GET, żadnego JSON-body → brak preflightu
+    const res = await fetch(url.toString(), {
+      method: 'GET'
     });
+
+    // 3) standardowa obsługa odpowiedzi
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const payload = await res.json();
     if (payload.error) throw new Error(payload.error);
     return payload.result;
+
   } catch (e) {
     console.error(`Błąd połączenia z backendem [${action}]:`, e);
     throw e;
   }
 }
+
 
 
 
