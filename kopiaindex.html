@@ -501,20 +501,21 @@ const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxy0z5Q-douCQokKqBp
 
 async function sendTelegramApiRequest(action, data = {}) {
   try {
-    // 1) zbuduj URL z parametrami action i opcjonalnie data
-    const url = new URL(BACKEND_URL);
-    url.searchParams.append('action', action);
-    // tylko jeśli są jakieś dane, dodajemy je jako JSON-string
+    // 1) Zbuduj form-encoded body
+    const form = new URLSearchParams();
+    form.append('action', action);
+    // tylko jeśli są dane, dołóż je jako JSON-string
     if (Object.keys(data).length) {
-      url.searchParams.append('data', JSON.stringify(data));
+      form.append('data', JSON.stringify(data));
     }
 
-    // 2) proste GET, żadnego JSON-body → brak preflightu
-    const res = await fetch(url.toString(), {
-      method: 'GET'
+    // 2) Wyślij POST jako application/x-www-form-urlencoded
+    const res = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString()
     });
 
-    // 3) standardowa obsługa odpowiedzi
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const payload = await res.json();
     if (payload.error) throw new Error(payload.error);
@@ -525,6 +526,7 @@ async function sendTelegramApiRequest(action, data = {}) {
     throw e;
   }
 }
+
 
 
 
