@@ -1,0 +1,2188 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Rejestracja czasu pracy 1.36</title>
+  <style>
+
+:root {
+  --main-bg: #f3f7fa;
+  --accent1: #3a86ff;
+  --accent1-light: #e0eeff;
+  --accent2: #f9a826;
+  --glass-bg: rgba(255,255,255,0.55);
+  --glass-blur: blur(8px);
+  --border: 1.5px solid rgba(60, 70, 100, 0.10);
+  --tile-radius: 18px;
+  --shadow1: 0 8px 32px rgba(60,70,100,0.08);
+  --shadow2: 0 2px 12px rgba(60,70,100,0.07);
+  --error: #d80000;
+  --green: #1dd1a1;
+  --yellow: #ffd600;
+}
+
+/* ———— GLOBAL ———— */
+body {
+  font-family: 'Segoe UI', 'Montserrat', Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: var(--main-bg);
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+}
+body::after {
+  content: "";
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: url('https://raw.githubusercontent.com/kmylpenter/czaspracy/main/Finalkmylpenter_3.0_trademark_final.png') no-repeat center center;
+  background-size: contain;
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#clock {
+  font-size: 1.18rem;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  margin-bottom: 0;
+  margin-top: 16px;
+  color: var(--accent1);
+  text-shadow: 0 1px 1px rgba(58,134,255,0.06);
+  text-align: center;
+  width: 100vw;
+}
+h2 {
+  font-size: 2rem;
+  margin-top: 26px;
+  margin-bottom: 8px;
+  text-align: center;
+  width: 100vw;
+}
+h3 {
+  margin: 20px 0 0 0;
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.active {
+  display: flex;
+}
+
+.nav-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  position: static;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ———— TILES / GRID ———— */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+  margin: 20px;
+  width: 90%;
+  max-width: 800px;
+  justify-content: center;
+  justify-items: center;
+}
+@media (max-width: 650px) {
+  .grid { font-size:0.95rem; gap:8px;}
+}
+@media (max-width: 400px) {
+  .grid {
+    grid-template-columns: 1fr !important;
+    justify-content: center;
+    justify-items: center;
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100px;
+  height: 70px;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+  padding: 10px;
+  border-radius: var(--tile-radius);
+  box-shadow: var(--shadow2);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(.6,1.5,.45,1);
+  border: var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  font-weight: 500;
+  margin: 0;
+  position: relative;
+}
+.tile:hover {
+  background: var(--accent1-light);
+  transform: scale(1.06) translateY(-1px);
+  box-shadow: 0 6px 24px rgba(60,70,100,0.12);
+}
+.tile.selected {
+  background: var(--accent1-light);
+  border: 2px solid var(--accent1);
+  box-shadow: 0 0 0 2px var(--accent1-light);
+}
+.tile.clicked { animation: pop 0.22s ease-out; }
+@keyframes pop {
+  0%   { transform: scale(1);}
+  50%  { transform: scale(1.08);}
+  100% { transform: scale(1);}
+}
+/* Kafle w poszczególnych krokach */
+.tile-step1 { background: var(--glass-bg);}
+.tile-step2 { background: var(--glass-bg);}
+.tile-step3 { background: var(--glass-bg);}
+.tile-step4 { background: var(--glass-bg) !important;}
+/* Kolory statusów */
+.tile-status-green  { background: #d4edda !important; border: 2px solid #28a745;}
+.tile-status-yellow { background: #fff3cd !important; border: 2px solid #ffc107;}
+.tile-status-red    { background: #f8d7da !important; border: 2px solid #dc3545;}
+/* Ostatnio używane */
+.tile.recent {
+  background: #fffbe6 !important;
+  border: 2px dashed #ffc107;
+}
+
+/* Kafelki z godzinami (małe) */
+#step5 .hour-options .tile,
+#hourTiles .tile {
+  width: 50px;
+  height: 50px;
+  padding: 5px;
+  font-size: 1rem;
+}
+
+/* ———— BUTTONS ———— */
+button, .back-button {
+  margin: 10px;
+  padding: 12px 28px;
+  font-size: 1.12rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent1);
+  color: #fff;
+  transition: background 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 6px rgba(60,70,100,0.10);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  outline: none;
+  position: relative;
+  z-index: 1;
+}
+button:hover, .back-button:hover {
+  background: #5aa0ff;
+}
+.back-button {
+  background: #e0e0e0;
+  color: #333;
+  box-shadow: none;
+}
+.back-button:hover {
+  background: #d0d0d0;
+  color: #222;
+}
+
+/* Lepsze guziki na podsumowaniu */
+#step5 button {
+  margin: 12px 12px 0 0;
+  padding: 14px 34px;
+  font-size: 1.12rem;
+  min-width: 130px;
+  min-height: 48px;
+  white-space: nowrap;
+}
+#step5 button:last-child { margin-right: 0; }
+@media (max-width: 600px) {
+  #step5 button {
+    width: 100%;
+    margin: 10px 0 0 0;
+    display: block;
+    font-size: 1rem;
+    padding: 16px 0;
+    min-width: unset;
+  }
+}
+
+/* Przycisk X do usuwania */
+.remove-btn {
+  float: right;
+  background: none !important;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--error);
+  cursor: pointer;
+  margin-top: -8px;
+  margin-right: -8px;
+  padding: 0;
+  transition: color 0.16s;
+}
+.remove-btn:hover { color: #ff0000; }
+
+/* ———— TIMER ———— */
+.summary-entry.row-timer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 10px;
+  margin: 8px 0;
+  background: var(--glass-bg);
+  border-radius: 8px;
+  box-shadow: var(--shadow2);
+  font-size: 1.02rem;
+  border: var(--border);
+  backdrop-filter: var(--glass-blur);
+}
+.timer-col.project   { min-width: 80px; font-weight: bold; }
+.timer-col.category  { min-width: 80px; }
+.timer-col.subcategory { min-width: 100px; }
+.timer-col.time      { min-width: 80px; font-family: 'Consolas', monospace; }
+.timer-col.button    { margin-left: auto; }
+@media (max-width: 650px) {
+  .summary-entry.row-timer { flex-wrap: wrap; font-size:0.95rem; gap:8px;}
+  .timer-col.project, .timer-col.category, .timer-col.subcategory, .timer-col.time { min-width:unset;}
+}
+
+/* ———— PODSUMOWANIE ———— */
+.summary-entry {
+  margin: 10px 0;
+  padding: 10px;
+  background: var(--glass-bg);
+  border-radius: 10px;
+  box-shadow: var(--shadow2);
+  border: var(--border);
+  position: relative;
+}
+.summary-entry-container {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 16px;
+  justify-content: center;
+  max-width: 800px;
+  margin: 20px auto;
+}
+@media (max-width: 800px) {
+  .summary-entry-container {
+    grid-template-columns: 1fr;
+    width: 98vw;
+    margin: 6px 0;
+  }
+}
+
+/* Łączna liczba godzin */
+.total-hours {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-left: 20px;
+}
+.total-hours.red { color: var(--error);}
+.total-hours.green { color: var(--green);}
+
+/* ———— GODZINY ———— */
+.hour-options {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+  width: 90%;
+  max-width: 800px;
+}
+@media (max-width: 650px) {
+  .hour-options { grid-template-columns: repeat(4, 1fr);}
+}
+@media (max-width: 400px) {
+  .hour-options { grid-template-columns: repeat(1, 1fr);}
+}
+
+/* Ukryj wybór godzin na wejściu do kroku 4 */
+#hourSection { display: none; }
+
+/* ———— POPUPY I TOAST ———— */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--green);
+  color: white;
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-size: 1.04rem;
+  display: none;
+  z-index: 9999;
+  box-shadow: 0 2px 18px rgba(60,70,100,0.14);
+  font-weight: 500;
+}
+#toast.error {
+  background: var(--error);
+}
+
+/* Edycja wpisów: styl tabelki */
+#entries-popup table {
+  font-size: 0.94rem;
+  border-collapse: collapse;
+  width: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border-radius: 10px;
+  overflow: hidden;
+}
+#entries-popup table th,
+#entries-popup table td {
+  border: 1px solid #eee;
+  padding: 6px;
+  text-align: left;
+}
+#entries-popup table th {
+  background: var(--accent1-light);
+}
+#entries-popup table td > button {
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  font-size: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  vertical-align: middle;
+}
+#entries-popup h3 { margin-top: 0; }
+
+/* Inne poprawki */
+#recent-projects-container, #all-projects-container {
+  width: 90%;
+  max-width: 800px;
+  margin-top: 20px;
+  background: none;
+}
+#subcategories {
+  background: none !important;
+}
+
+
+    
+  </style>
+</head>
+
+<body>
+<h3 id="clock" style="margin-top: 0;"></h3>
+<div id="toast"></div>
+
+ <div class="nav-bar" id="backButtonContainer">
+  <button class="back-button" id="backBtn">⬅ Wstecz</button>
+  <button id="addBtn" class="back-button" style="margin-left: 10px;">➕ Dodaj</button>
+  <button class="back-button" id="viewEntriesBtn">📋 Zobacz wpisy</button>
+  <button id="timer-toggle-btn" style="display:none; margin-left:10px;">⏱ Timer</button>
+  <button id="go-summary-btn" class="back-button" style="display:none;">📊 Podsumowanie</button>
+</div>
+
+
+
+
+  <h2 id="step-title">Jak masz na imię?</h2>
+
+  <div class="screen active" id="step1">
+    <div class="grid" id="workers"></div>
+  </div>
+<div class="screen" id="step2">
+
+  <button onclick="fetchProjectsFromSheet()">🔄 Aktualizuj projekty</button>
+
+  <!-- Sekcja ostatnio używane -->
+  <div id="recent-projects-container" style="width:90%; max-width:800px; margin-top:20px;">
+    <h3>Ostatnio używane:</h3>
+    <div class="grid" id="recent-projects"></div>
+  </div>
+
+  <!-- Sekcja wszystkie projekty -->
+  <div id="all-projects-container" style="width:90%; max-width:800px; margin-top:20px;">
+    <h3>Wszystkie projekty:</h3>
+    <div class="grid" id="projects"></div>
+  </div>
+</div>
+
+
+  <div class="screen" id="step3">
+<button onclick="fetchCategoriesFromBackend()">🔄 Aktualizuj kategorie</button>
+    <div class="grid" id="categories"></div>
+    <div id="add-category-container" style="text-align:center;">
+         </div>
+
+  </div>
+ <div class="screen" id="step4">
+  <!-- ➡️ tutaj przycisk odświeżania zadań -->
+  <div id="task-update-container" style="width:90%; max-width:800px; margin-bottom:10px; text-align:center;">
+    <button onclick="handleUpdateTasks()">🔄 Aktualizuj zadania</button>
+  </div>
+
+  <!-- lista kafelków z zadaniami -->
+  <div class="grid tile-step4" id="subcategories"></div>
+
+  <!-- wybór godzin -->
+  <div id="hourSection" style="display:none;">
+    <h3>Wybierz liczbę godzin:</h3>
+    <div class="hour-options" id="hourTiles"></div>
+  </div>
+</div>
+  <div class="screen" id="step5">
+    <div id="summary"></div>
+    <p><strong>Łączna liczba godzin:</strong> <span id="totalHours">0</span> h</p>
+    <button onclick="addAnotherProject()">Dodaj kolejny projekt</button>
+    <button onclick="resetForm()">Zacznij od nowa</button>
+    <button onclick="submitData()">Zapisz</button>
+  </div>
+
+
+
+  <script>
+// Wstaw do funkcji updateTimerButtonVisibility:
+function updateTimerButtonVisibility() {
+    const btn = document.getElementById('timer-toggle-btn');
+    if (!state.worker || !TIMER_USERS.includes(state.worker)) {
+        btn.style.display = 'none';
+        return;
+    }
+    btn.style.display = 'inline-block';
+
+    // Tryb globalny (timerMode) – stan włącznika
+    if (!timerMode) {
+        btn.textContent = "⏱ Timer: OFF";
+        btn.style.background = "#d80000";
+        btn.style.color = "#fff";
+        return;
+    }
+
+    // TimerMode = true, sprawdzamy czy coś się "kręci" dziś
+    const dateStr = getDayString();
+    const data = getFullTimerData(state.worker, dateStr);
+    const isRunning = (data.sessions || []).some(s => s.isRunning);
+
+    if (isRunning) {
+        btn.textContent = "⏱ Timer: W TRAKCIE";
+        btn.style.background = "#ffc107";
+        btn.style.color = "#222";
+    } else {
+        btn.textContent = "⏱ Timer: ON";
+        btn.style.background = "#28a745";
+        btn.style.color = "#fff";
+    }
+}
+
+
+
+// Pokazuje/ukrywa przycisk "Podsumowanie" gdy aktywny tryb timera
+function updateSummaryButtonVisibility() {
+  const btn = document.getElementById('go-summary-btn');
+  btn.style.display = timerMode ? 'inline-block' : 'none';
+}
+
+// ===========================================
+// WYWOŁANIE BACKENDU (Twój Apps Script WebApp)
+// ===========================================
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxy0z5Q-douCQokKqBpgv64lQTbAErADo6e5RfCntogHF2ViLYNmKTMBenAzwbuA8H7/exec';
+
+async function sendTelegramApiRequest(action, data = {}) {
+  try {
+    const res = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    if (payload.error) throw new Error(payload.error);
+    return payload.result;
+  } catch (e) {
+    console.error(`Błąd połączenia z backendem [${action}]:`, e);
+    throw e;
+  }
+}
+
+
+
+
+
+
+
+
+// ———– KONFIGURACJA TIMERA ————
+const TIMER_STORAGE_PREFIX = "timerData_";
+const TIMER_DAYS_BACK = 3;
+
+// Zwraca datę w formacie YYYY-MM-DD
+function getDayString(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() - offsetDays);
+  return d.toISOString().split('T')[0];
+}
+
+// Generuje klucz do localStorage dla danego użytkownika i daty
+function getTimerStorageKey(worker, dateString) {
+  return `${TIMER_STORAGE_PREFIX}${worker}_${dateString}`;
+}
+
+// Odczytaj dane z localStorage dla użytkownika z ostatnich 3 dni
+function loadTimerDataForWorker(worker) {
+  const results = [];
+  for (let i = 0; i < TIMER_DAYS_BACK; i++) {
+    const dayStr = getDayString(i);
+    const key = getTimerStorageKey(worker, dayStr);
+    const dataStr = localStorage.getItem(key);
+    if (dataStr) {
+      try {
+        const data = JSON.parse(dataStr);
+        results.push({ dayStr, data });
+      } catch(e) {
+        // Jeśli coś jest nie tak – usuń z localStorage
+        localStorage.removeItem(key);
+      }
+    }
+  }
+  return results;
+}
+
+// Zapisuje dane timera dla użytkownika i danego dnia
+function saveTimerDataForWorker(worker, dateString, timerData) {
+  const key = getTimerStorageKey(worker, dateString);
+  localStorage.setItem(key, JSON.stringify(timerData));
+}
+
+// Usuwa dane timera po zapisaniu do arkusza
+function clearTimerDataForWorker(worker, dateString) {
+  localStorage.removeItem(getTimerStorageKey(worker, dateString));
+}
+
+// 1. Funkcja konwertująca sekundy na "xh ymin"
+function formatSecondsToHhMm(sec) {
+  sec = parseInt(sec, 10);
+  if (isNaN(sec) || sec < 0) return "-";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  let out = "";
+  if (h > 0) out += `${h}h `;
+  if (m > 0) out += `${m}min`;
+  if (out.trim() === "") out = "0min";
+  return out.trim();
+}
+
+
+function showPendingTimersScreen(oldTimers, worker) {
+  // Ukrywamy wszystkie ekrany
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // Tworzymy popup
+  let html = `<div id="pending-timers-screen" style="
+      position:fixed; top:10%; left:50%; transform:translateX(-50%);
+      background:white; padding:30px; box-shadow:0 0 12px rgba(0,0,0,.20);
+      max-width:350px; z-index:9999; border-radius:15px;">
+      <h3>Masz niezapisane pomiary czasu z poprzednich dni:</h3>
+      <ul style="padding-left:18px;">`;
+  oldTimers.forEach(({dayStr, data}) => {
+    html += `<li style="margin-bottom: 10px;">
+      <b>${dayStr}</b> — 
+      <button onclick="viewPendingTimerSummary('${worker}','${dayStr}')" style="background:#3a86ff; color:white;">Wyświetl</button>
+      <br>
+      <span style="font-size:0.95em; color:#666;">(Ilość wpisów: ${data.entries ? data.entries.length : 0})</span>
+    </li>`;
+  });
+  html += `</ul>
+      <button onclick="skipAndClearPendingTimers('${worker}')" style="margin-top:12px; background:#d80000; color:white;">Pomiń</button>
+    </div>`;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+
+
+function closePendingTimersScreen() {
+  const el = document.getElementById('pending-timers-screen');
+  if (el) el.remove();
+  showStep(2);
+  renderProjects();
+  updateTimerButtonVisibility();
+}
+function saveOldTimerToSheet(worker, dayStr) {
+  // Na razie tylko usuwamy dane (mock)
+  clearTimerDataForWorker(worker, dayStr);
+  // Usuwamy z ekranu zapisany wpis
+  const el = document.getElementById('pending-timers-screen');
+  if (el) el.remove();
+  // Sprawdzamy, czy są jeszcze jakieś zaległe
+  const oldTimers = loadTimerDataForWorker(worker);
+  if (oldTimers.length > 0) {
+    showPendingTimersScreen(oldTimers, worker);
+  } else {
+    showStep(2);
+    renderProjects();
+    updateTimerButtonVisibility();
+  }
+  showToast("Zapisano (symulacja)");
+}
+
+
+// ————— ZAMIENNIK showRecentEntries —————
+// Jedyna definicja showRecentEntries:
+  window.showRecentEntries = async function() {
+    try {
+      const entries = await sendTelegramApiRequest('getRecentEntries', { days: 7 });
+
+    const html = `
+      <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
+        background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+        max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
+        <div style="text-align:center; margin-top:10px;">
+          <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
+        </div>
+        <h3>Ostatnie wpisy</h3>
+        <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Pracownik</th>
+              <th>Projekt</th>
+              <th>Kategoria</th>
+              <th>Zadanie</th>
+              <th>Godziny</th>
+              <th>Edytuj</th>
+              <th>Usuń</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${entries.map(entry => `
+              <tr>
+                <td>${entry.data}</td>
+                <td>${entry.pracownik}</td>
+                <td>${entry.projekt}</td>
+                <td>${entry.kategoria}</td>
+                <td>${entry.zadanie}</td>
+                <td>${formatSecondsToHhMm(entry.godziny)}</td>
+                <td>
+                  <button onclick="editEntry(${entry.id})">✏️</button>
+                </td>
+                <td>
+                  <button onclick="deleteEntry(${entry.id})" style="color:red;">🗑️</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+} catch (err) {
+    console.error("Błąd pobierania wpisów:", err);
+    showToast("Nie udało się pobrać wpisów", true);
+  }
+};
+
+
+// Helpers: dostajesz i zapisujesz listę projektów w localStorage
+function getCachedProjects() {
+  try { return JSON.parse(localStorage.getItem('projekty')||'[]') }
+  catch { return [] }
+}
+function setCachedProjects(arr) {
+  localStorage.setItem('projekty', JSON.stringify(arr))
+}
+
+
+
+
+function viewPendingTimerSummary(worker, dayStr) {
+  // Zamknij popup
+  const el = document.getElementById('pending-timers-screen');
+  if (el) el.remove();
+
+  // Przejdź do ekranu podsumowania
+  showStep(5);
+
+  // Wyświetl podsumowanie timera dla wybranej daty i pracownika
+    timerMode = true; // Przechodzimy w tryb timera dla tej sesji!
+  state.summaryDate = dayStr; // zapamiętaj datę do wyświetlania podsumowania!
+  renderFullSummary(worker, dayStr);
+  updateTimerButtonVisibility(); // żeby kolor przycisku był poprawny!
+
+}
+
+
+function skipAndClearPendingTimers(worker) {
+  // Usuń wszystkie zaległe timery z localStorage
+  for (let i = 0; i < 3; i++) {
+    const dayStr = getDayString(-i);
+    const key = getTimerStorageKey(worker, dayStr);
+    localStorage.removeItem(key);
+  }
+  // Zamknij popup
+  const el = document.getElementById('pending-timers-screen');
+  if (el) el.remove();
+  showStep(2);
+  renderProjects();
+  updateTimerButtonVisibility();
+  showToast("Wyczyszczono niezatwierdzone pomiary", false);
+}
+
+function renderOldTimerSummary(worker, dayStr) {
+  state.summaryDate = dayStr;
+  renderFullSummary(worker, dayStr);
+}
+
+/* Koniec fragmentu 2*/
+
+
+function getCachedTasks() {
+  try { return JSON.parse(localStorage.getItem('tasksCache')||'{}') }
+  catch { return {} }
+}
+function setCachedTasks(obj) {
+  localStorage.setItem('tasksCache', JSON.stringify(obj))
+}
+
+// pobierz WSZYSTKIE zadania raz z arkusza, pogrupuj po kategorii
+async function fetchTasksFromBackend() {
+  try {
+    const tasksByCat = await sendTelegramApiRequest('getTasks');
+    setCachedTasks(tasksByCat);
+
+    if (currentStep === 4 && currentEntry?.category) {
+      const list = tasksByCat[currentEntry.category] || [];
+      renderTiles('subcategories', list, subcat => {
+        currentEntry.subcategory = subcat;
+        document.getElementById('hourSection').style.display = 'block';
+      });
+    }
+    showToast("Zadania zaktualizowane z backendu");
+    return tasksByCat;
+  } catch (e) {
+    console.error("Błąd pobierania zadań:", e);
+    showToast("Błąd aktualizacji zadań", true);
+    return {};
+  }
+}
+
+
+
+// Pobierz z localStorage lub []  
+function getRecentProjects() {
+  try { return JSON.parse(localStorage.getItem('recentProjects'))||[]; }
+  catch { return []; }
+}
+function setRecentProjects(arr) {
+  localStorage.setItem('recentProjects', JSON.stringify(arr));
+}
+// Przy wyborze projektu – wrzuć na początek, usuń duplikaty, zachowaj max 7
+function updateRecentProjects(project) {
+  // tylko 5 pierwszych
+const recent = getRecentProjects().slice(0,5);
+
+  const filtered = [project, ...recent.filter(p=>p!==project)];
+  setRecentProjects(filtered.slice(0,7));
+}
+
+
+// renderowanie kafelków projektów
+function renderProjects() {
+  // tylko 5 pierwszych
+const recent = getRecentProjects().slice(0,5);
+
+  const recentContainer = document.getElementById('recent-projects');
+  recentContainer.innerHTML = '';
+
+  // *** DLA CELÓW DEBUGU dodaj na chwilę logi:
+  console.log('renderProjects ↠ recent:', recent, 'all projects:', projects);
+
+  // zawsze pokazuj sekcję (przynajmniej na czas testów)
+  document.getElementById('recent-projects-container').style.display = 'block';
+
+  // render kafelków „ostatnio używane”
+  if (recent.length) {
+    renderTiles('recent-projects', recent, selectProject);
+    Array.from(recentContainer.children)
+         .forEach(div => div.classList.add('recent'));
+  }
+
+  // render wszystkich projektów poniżej
+  document.getElementById('all-projects-container').style.display = 'block';
+  renderTiles('projects', projects, selectProject);
+  addCustomProjectTile();
+}
+
+
+
+// w resetForm: od razu z cache’u, bez fetcha
+async function resetForm() {
+  state = { worker: null, entries: [] };
+  loadProjectsFromStorage();
+  // ⬇⬇⬇ To jest kluczowe
+  if (gapiInited) {
+    await fetchCategoriesFromBackend(); // ⬅⬅⬅ poczekaj na pobranie zanim cokolwiek dalej!
+  } else {
+    setTimeout(resetForm, 250);
+    return;
+  }
+  const statusMap = await fetchWorkerStatuses();
+  showStep(1);
+  renderTiles('workers', workers, worker => {
+  state.worker = worker;
+  // 1. Najpierw sprawdzamy overnight timer
+  if (checkOvernightTimer(worker)) {
+    return; // wyświetlił popup, nie idź dalej!
+  }
+  // 2. Jeśli nie overnight, sprawdzamy stare timery
+  const oldTimers = loadTimerDataForWorker(worker);
+  if (oldTimers.length > 0) {
+    showPendingTimersScreen(oldTimers, worker);
+    return;
+  }
+  showStep(2);
+  renderProjects();
+  updateTimerButtonVisibility();
+}, statusMap);
+
+}
+
+
+function checkPendingSave() {
+  const pending = localStorage.getItem("pendingSave");
+  if (pending) {
+    showToast("Masz niezapisane dane! Kliknij tutaj, aby spróbować je zapisać.", true);
+    document.getElementById('toast').onclick = () => {
+      actuallySubmitPendingData();
+    };
+  }
+}
+
+function formatSecondsHMS(sec) {
+  sec = Math.floor(sec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return [h, m, s].map(x=>x.toString().padStart(2,'0')).join(':');
+}
+
+
+async function actuallySubmitPendingData() {
+  const pending = localStorage.getItem("pendingSave");
+  if (!pending) return;
+  
+  try {
+    const { values } = JSON.parse(pending);
+
+    await sendTelegramApiRequest('submitEntries', { entries: values });
+
+    localStorage.removeItem("pendingSave");
+    showToast("Udało się zapisać zaległe dane!");
+    resetForm();
+  } catch (err) {
+    console.error("Błąd zapisu zaległych danych:", err);
+    showToast("Dalej nie udało się zapisać! Twoje dane są bezpieczne.", true);
+  }
+}
+
+
+
+
+    // Zwraca string daty YYYY-MM-DD
+function getDayString(offset = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split('T')[0];
+}
+
+// Zwraca listę {dayStr, data} z localStorage z 3 dni wstecz
+function loadTimerDataForWorker(worker) {
+    const result = [];
+    for (let offset = 0; offset > -3; offset--) {
+        const dayStr = getDayString(offset);
+        const key = `timerData_${worker}_${dayStr}`;
+        const data = JSON.parse(localStorage.getItem(key) || "null");
+        if (data) result.push({ dayStr, data });
+    }
+    return result;
+}
+
+// Zapisz stan timera (np. "on" lub "off") dla aktualnego pracownika i dnia
+function saveTimerState(worker, state) {
+    const dayStr = getDayString();
+    const key = `timerData_${worker}_${dayStr}`;
+    let data = JSON.parse(localStorage.getItem(key) || "{}");
+    data.timerState = state;
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+// Odczytaj stan timera (on/off/inProgress)
+function getTimerState(worker) {
+    const dayStr = getDayString();
+    const key = `timerData_${worker}_${dayStr}`;
+    let data = JSON.parse(localStorage.getItem(key) || "{}");
+    return data.timerState || "off";
+}
+
+async function deleteEntry(entryId) {
+  if (!confirm("Czy na pewno chcesz usunąć ten wpis? Tej operacji nie można cofnąć.")) return;
+  
+  try {
+    await sendTelegramApiRequest('deleteEntry', { entry_id: entryId });
+    showToast("Wpis został usunięty.");
+    document.getElementById('entries-popup').remove();
+    showRecentEntries();
+  } catch (e) {
+    console.error("Błąd kasowania wpisu:", e);
+    showToast("Nie udało się usunąć wpisu.", true);
+  }
+}
+
+
+
+async function editEntry(entryId) {
+  try {
+    const entry = await sendTelegramApiRequest('getEntry', { entry_id: entryId });
+    const headers = ['Data', 'Pracownik', 'Projekt', 'Kategoria', 'Zadanie', 'Godziny'];
+
+    const updated = await Promise.all(headers.map(async (header) => {
+      if (header === "Godziny") {
+        const godziny = (entry.godziny / 3600).toLocaleString('pl-PL', { maximumFractionDigits: 2 });
+        const inp = prompt(`Nowa wartość dla ${header} (w godzinach, np. 1,5):`, godziny);
+        if (inp == null) return entry.godziny;
+
+        let h = parseFloat(inp.replace(',', '.'));
+        if (isNaN(h) || h < 0) h = 0;
+        return Math.round(h * 3600);
+      } else {
+        const inp = prompt(`Nowa wartość dla ${header}:`, entry[header.toLowerCase()]);
+        return inp == null ? entry[header.toLowerCase()] : inp;
+      }
+    }));
+
+    await sendTelegramApiRequest('updateEntry', {
+      entry_id: entryId,
+      data: {
+        data: updated[0],
+        pracownik: updated[1],
+        projekt: updated[2],
+        kategoria: updated[3],
+        zadanie: updated[4],
+        godziny: updated[5]
+      }
+    });
+
+    showToast("Zaktualizowano wpis");
+    document.getElementById('entries-popup').remove();
+    showRecentEntries();
+  } catch (e) {
+    console.error("Błąd aktualizacji wpisu:", e);
+    showToast("Nie udało się zaktualizować wpisu.", true);
+  }
+}
+
+async function fetchProjectsFromBackend() {
+  try {
+    const projects = await sendTelegramApiRequest('getProjects');
+    setCachedProjects(projects);
+    renderProjects();
+    showToast("Projekty zaktualizowane");
+  } catch (e) {
+    console.error("Błąd pobierania projektów:", e);
+    showToast("Błąd pobierania projektów", true);
+  }
+}
+
+
+
+
+function showToast(msg, isError = false) {
+  const toast = document.getElementById('toast');
+  if (!toast) {
+    console.warn("Toast element nie istnieje:", msg);
+    return;
+  }
+
+  toast.textContent = msg;
+  toast.classList.toggle('error', isError);
+  toast.style.display = 'block';
+  setTimeout(() => {
+    toast.style.display = 'none';
+  }, 5000);
+}
+
+
+function updateClock() {
+  const now = new Date();
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const dateStr = now.toLocaleDateString('pl-PL', options);
+  const timeStr = now.toLocaleTimeString('pl-PL');
+  document.getElementById('clock').innerText = `${dateStr}, ${timeStr}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+    // ————— USTAWIENIA —————
+    const API_KEY         = "AIzaSyDDihxqon-BeTzmC-vEE4kyhRJBXTlK_lA";
+    const CLIENT_ID       = "614198520540-4ann4cs5o8pchgi1u15q6n08pj87n51o.apps.googleusercontent.com";
+    const SPREADSHEET_ID  = "14t8T8GexDVVlO5v-C1T0VHz94LmM5FRRNg-sXPKh2GE";
+    const DISCOVERY_DOCS  = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
+    const SCOPES          = "https://www.googleapis.com/auth/spreadsheets";
+    const SHEET_NAME_LOAD = "Projekty";
+    const SHEET_NAME_SAVE = "CzasPracy";
+
+    // ————— DANE APLIKACJI —————
+    const workers = ["Kamil","Paweł","Piotr","Przemek","Robert"];
+
+    async function fetchCategoriesFromBackend() {
+  try {
+    const baseCategories = ["Stal", "Drewno", "Montaż", "Biuro"];
+    const newCategories = await sendTelegramApiRequest('getCategories');
+    window.categories = Array.from(new Set([...baseCategories, ...newCategories]));
+
+    renderTiles('categories', window.categories, selectCategory);
+    showToast("Kategorie zaktualizowane z backendu");
+  } catch (e) {
+    console.error("Błąd pobierania kategorii:", e);
+    showToast("Błąd aktualizacji kategorii", true);
+  }
+}
+
+
+
+
+    const subcategoriesMap = {
+      "Stal": ["Konstrukcja","Balustrady"],
+      "Drewno": ["Przygotowanie","Produkcja","Lakierowanie"],
+      "Montaż": ["Dojazd","Pakowanie","Montaż elementów"],
+      "Biuro": ["Zakupy","Faktury","Telefon","Sketchup"]
+    };
+    let projects = [];
+    let state = { worker: null, entries: [] };
+    let currentEntry = null;
+    let currentStep = 1;
+    let timerMode = false; // false = normalny, true = timer
+    let timerData = null;  // tutaj będziemy trzymać obecny wpis timera
+    let timerInterval = null; // do odliczania sekund
+
+
+    // ————— POMOCNICZE —————
+    function showStep(step) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`step${step}`).classList.add('active');
+  const titles = [" ","Wybierz projekt","Wybierz kategorię","Wybierz zadanie","Podsumowanie"];
+  document.getElementById('step-title').innerText = titles[step-1];
+  document.getElementById('addBtn').style.display = (step === 2 || step === 4) ? 'inline-block' : 'none';
+  // — poprawka:
+  document.querySelectorAll('.back-button').forEach(btn => {
+    document.getElementById('backBtn').style.display = (step === 1 || (step === 5 && timerMode)) ? 'none' : 'inline-block';
+  });
+
+  currentStep = step;
+  if (step === 4) {
+    document.getElementById('hourSection').style.display = 'none';
+    renderHourTiles();
+  }
+  updateTimerButtonVisibility();
+  updateSummaryButtonVisibility();
+
+}
+
+
+/*Koniec fragmentu 3*/
+
+function selectCategory(category) {
+  currentEntry.category = category;
+  showStep(4);
+  const staticList = subcategoriesMap[category] || [];
+  const cached = getCachedTasks()[category] || [];
+  renderTiles('subcategories', Array.from(new Set([...staticList, ...cached])), subcat => {
+    currentEntry.subcategory = subcat;
+    if (timerMode) {
+      startTaskTimer(currentEntry);
+    } else {
+      document.getElementById('hourSection').style.display = 'block';
+    }
+  });
+}
+
+
+
+async function handleAddCustom() {
+  if (currentStep === 2) { // Projekty
+    const name = prompt("Podaj nazwę nowego projektu:");
+    if (name && !projects.includes(name)) {
+      projects.push(name);
+      localStorage.setItem('projekty', JSON.stringify(projects));
+      renderProjects();
+      await sendTelegramApiRequest('addProject', { project: name });
+      showToast("Nowy projekt dodany.");
+    }
+  }
+
+  if (currentStep === 3) { // Kategorie
+    const name = prompt("Podaj nazwę nowej kategorii:");
+    if (name && !categories.includes(name)) {
+      categories.push(name);
+      renderTiles('categories', window.categories, selectCategory);
+      await sendTelegramApiRequest('addCategory', { category: name });
+      showToast("Dodano nową kategorię");
+    }
+  }
+
+  if (currentStep === 4 && currentEntry?.category) { // Zadania
+    const name = prompt("Podaj nazwę nowego zadania:");
+    const list = subcategoriesMap[currentEntry.category] || [];
+    if (name && !list.includes(name)) {
+      list.push(name);
+      subcategoriesMap[currentEntry.category] = list;
+      renderTiles('subcategories', list, subcat => {
+        currentEntry.subcategory = subcat;
+        if (timerMode) {
+          startTaskTimer(currentEntry);
+        } else {
+          document.getElementById('hourSection').style.display = 'block';
+        }
+      });
+      await sendTelegramApiRequest('addTask', {
+        category: currentEntry.category,
+        task: name
+      });
+      showToast("Nowe zadanie dodane.");
+    }
+  }
+}
+
+
+
+async function handleAddCategory() {
+  const name = prompt("Podaj nazwę nowej kategorii:");
+  if (!name) return;
+  if (!categories.includes(name)) {
+    categories.push(name);
+    await sendTelegramApiRequest('addCategory', { category: name });
+    await fetchCategoriesFromBackend();
+    renderTiles('categories', window.categories, category => {
+      currentEntry.category = category;
+      showStep(4);
+      renderTiles(
+        'subcategories',
+        subcategoriesMap[category] || [],
+        subcat => {
+          currentEntry.subcategory = subcat;
+          document.getElementById('hourSection').style.display = 'block';
+        }
+      );
+    });
+    showToast("Dodano nową kategorię");
+  } else {
+    showToast("Taka kategoria już istnieje!", true);
+  }
+}
+
+
+
+
+async function fetchWorkerStatuses() {
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const cached = localStorage.getItem("workerStatusCache");
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (parsed.date === todayStr && parsed.statusMap) {
+        return parsed.statusMap;
+      }
+    } catch (e) {
+      console.warn("Błąd parsowania cache:", e);
+    }
+  }
+
+  try {
+    const statusMap = await sendTelegramApiRequest('getWorkerStatuses');
+
+    localStorage.setItem("workerStatusCache", JSON.stringify({
+      date: todayStr,
+      statusMap
+    }));
+
+    return statusMap;
+  } catch (e) {
+    console.error("Błąd pobierania statusów pracowników:", e);
+    showToast("Nie udało się sprawdzić, kto się wpisał.", true);
+    return {};
+  }
+}
+
+
+
+
+
+
+    function renderTiles(containerId, items, onClick, statusMap = {}) {
+console.log("Rendertiles", { containerId, items, statusMap });
+
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const step = currentStep;
+
+  const stepClass = {
+    1: 'tile-step1',
+    2: 'tile-step2',
+    3: 'tile-step3',
+    4: 'tile-step4'
+  }[step] || 'tile';
+
+  items.forEach(item => {
+  const div = document.createElement('div');
+  div.className = `tile ${stepClass}`;
+
+  // Dodaj klasę statusu (jeśli dotyczy)
+  if (statusMap[item]) {
+    div.classList.add(`tile-status-${statusMap[item]}`);
+  }
+
+  div.innerText = item;
+  div.onclick = () => {
+    div.classList.add('clicked');
+    setTimeout(() => div.classList.remove('clicked'), 200);
+    [...container.children].forEach(c => c.classList.remove('selected'));
+    div.classList.add('selected');
+    onClick(item);   // ← TYLKO TO
+  };
+  container.appendChild(div);
+});
+
+}
+
+
+    // ————— RESET I START —————
+    function loadProjectsFromStorage() {
+      const stored = localStorage.getItem('projekty');
+      projects = stored ? JSON.parse(stored) : [];
+    }
+
+    async function resetForm() {
+  state = { worker: null, entries: [], summaryDate: null };
+  loadProjectsFromStorage();
+
+  try {
+    await fetchCategoriesFromBackend();
+  } catch (e) {
+    console.warn("Błąd ładowania kategorii z backendu:", e);
+    setTimeout(resetForm, 250);
+    return;
+  }
+
+  const statusMap = await fetchWorkerStatuses(); // upewnij się, że backend obsługuje odpowiednią metodę
+  showStep(1);
+  renderTiles('workers', workers, worker => {
+    state.worker = worker;
+
+    if (checkOvernightTimer(worker)) return;
+
+    const oldTimers = loadTimerDataForWorker(worker);
+    if (oldTimers.length > 0) {
+      showPendingTimersScreen(oldTimers, worker);
+      return;
+    }
+
+    showStep(2);
+    renderProjects();
+    updateTimerButtonVisibility();
+  }, statusMap);
+}
+
+
+    // ————— DYNAMICZNE TILES —————
+    function addCustomProject() {
+  const name = prompt("Podaj nazwę nowego projektu:");
+  if (name && !projects.includes(name)) {
+    projects.push(name);
+    localStorage.setItem('projekty', JSON.stringify(projects));
+   renderProjects();
+
+    // zapisujemy do arkusza NoweProjekty
+    saveNewItemToSheet(name, 'NoweProjekty');
+  }
+}
+
+
+    function addCustomProjectTile() {
+      const t = document.createElement('div');
+      t.className = 'tile';
+      t.innerText = '+ Dodaj projekt';
+      t.onclick = addCustomProject;
+      document.getElementById('projects').appendChild(t);
+    }
+
+
+
+function submitData() {
+  actuallySubmitData();
+}
+
+
+    // ————— Modyfikacja selectProject → wybór kategorii → krok 4 —————
+// po wyborze kategorii:
+function selectProject(project) {
+  updateRecentProjects(project);
+  currentEntry = { project, category: null, subcategory: null, hours: 0 };
+
+  showStep(3);
+  fetchCategoriesFromBackend().then(() => {
+    renderTiles('categories', window.categories, cat => {
+      currentEntry.category = cat;
+      showStep(4);
+      fetchTasksFromBackend().then(tasksByCat => {
+        const list = Array.from(new Set([
+          ...(subcategoriesMap[cat] || []),
+          ...(tasksByCat[cat] || [])
+        ]));
+
+        renderTiles('subcategories', list, subcat => {
+          currentEntry.subcategory = subcat;
+          if (timerMode) {
+            startTaskTimer(currentEntry);
+          } else {
+            document.getElementById('hourSection').style.display = 'block';
+          }
+        });
+      });
+    });
+  });
+}
+
+
+
+
+
+function stopCurrentTaskTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    if (timerData && timerData.isRunning) {
+        // Dodaj czas do totalSeconds
+        const now = Date.now();
+        timerData.totalSeconds += Math.floor((now - timerData.startTime) / 1000);
+        timerData.isRunning = false;
+    }
+}
+function toggleStartStopTimer() {
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+
+    // Znajdź ostatnią sesję (powinna być tylko jedna z isRunning==true lub żadna)
+    let session = data.sessions && data.sessions.length ? data.sessions[data.sessions.length - 1] : null;
+    if (!session) return;
+
+    if (session.isRunning) {
+        // STOP – wstrzymujemy licznik
+        session.endTime = Date.now();
+        session.isRunning = false;
+        session.duration += Math.floor((session.endTime - session.startTime) / 1000);
+        clearInterval(timerInterval);
+        setFullTimerData(state.worker, dateStr, data);
+    } else {
+        // START – wznawiamy licznik
+        session.startTime = Date.now();
+        session.isRunning = true;
+        setFullTimerData(state.worker, dateStr, data);
+        timerInterval = setInterval(renderTimerSummary, 1000);
+    }
+    renderFullSummary();
+    updateTimerButtonVisibility();
+}
+
+/*Koniec fragmentu 4*/
+
+function renderFullSummary(workerOverride = null, dateStrOverride = null) {
+  state.summaryDate = dateStrOverride || getDayString();
+
+  const summary = document.getElementById('summary');
+  summary.innerHTML = '';
+  const worker = workerOverride || state.worker;
+  const dateStr = dateStrOverride || getDayString();
+
+  // Wpisy formularzowe (tylko z dzisiaj i tylko dla aktywnego użytkownika)
+  const manualEntries = (state.worker === worker && dateStr === getDayString()) ? state.entries : [];
+
+  // Timery z localStorage
+  let timerData = getFullTimerData(worker, dateStr);
+  let sessions = timerData.sessions || [];
+
+  // Suma wszystkich sekund
+  let totalSeconds = 0;
+
+  // 1. Najpierw wpisy formularzowe (kafelki z godzinami)
+  if (manualEntries.length > 0) {
+    const container = document.createElement('div');
+    container.className = 'summary-entry-container';
+    manualEntries.forEach((e, i) => {
+  totalSeconds += (typeof e.hours === "number" ? e.hours * 3600 : 0);
+  const div = document.createElement('div');
+  div.className = 'summary-entry';
+  div.innerHTML = `
+    <button class="remove-btn" onclick="removeEntry(${i})">❌</button>
+    <p><strong>${e.project}</strong><br>${e.category} / ${e.subcategory}</p>
+    <div class="hour-options">
+      ${Array.from({length:15},(_,h)=>{
+        const hv = h+1;
+        let html = `<div class="tile ${(Math.floor(e.hours)===hv && !e.half)?'selected':''}" onclick="updateHoursWithHalf(${i},${hv},false)">${hv}</div>`;
+        // Jeśli wybrane, pokaż połówkę
+        if (Math.floor(e.hours) === hv) {
+          html += `<div class="tile half-tile ${(e.half?'selected':'')}" onclick="updateHoursWithHalf(${i},${hv},${!e.half})">${hv+0.5}</div>`;
+        }
+        return html;
+      }).join('')}
+    </div>
+    `;
+    container.appendChild(div);
+    });
+
+    summary.appendChild(container);
+  }
+
+  // 2. Potem wpisy z timera (każda sesja)
+  let anySessionRunning = false;
+  if (sessions.length > 0) {
+    sessions.forEach((session, idx) => {
+      let elapsed = session.duration || 0;
+      if (session.isRunning) {
+        elapsed += Math.floor((Date.now() - session.startTime) / 1000);
+        anySessionRunning = true;
+      }
+      totalSeconds += elapsed;
+      const h = Math.floor(elapsed / 3600);
+      const m = Math.floor((elapsed % 3600) / 60);
+      const s = elapsed % 60;
+      const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+
+      let btns = '';
+      if (session.isRunning) {
+        btns += `<button onclick="pauseTimerSession(${idx},'${worker}','${dateStr}')">⏹️ Stop</button>`;
+      } else {
+        btns += `<button onclick="resumeTimerSession(${idx},'${worker}','${dateStr}')">▶️ Wznów</button>`;
+      }
+      btns += `<button onclick="deleteTimerSession(${idx},'${worker}','${dateStr}')" style="margin-left:8px;">❌ Usuń</button>`;
+
+      summary.innerHTML += `
+        <div class="summary-entry row-timer">
+          <span class="timer-col project"><b>${session.project}</b></span>
+          <span class="timer-col category">${session.category}</span>
+          <span class="timer-col subcategory">${session.subcategory}</span>
+          <span class="timer-col time" id="timer-value-${idx}">${elapsedStr}</span>
+          <span class="timer-col button">${btns}</span>
+        </div>
+      `;
+    });
+
+    // Żywy licznik – jeśli coś jest aktywne
+    if (sessions.some(s => s.isRunning)) {
+      if (!window.__fullSummaryTimer) {
+        window.__fullSummaryTimer = setInterval(() => renderFullSummary(worker, dateStr), 1000);
+      }
+    } else {
+      if (window.__fullSummaryTimer) {
+        clearInterval(window.__fullSummaryTimer);
+        window.__fullSummaryTimer = null;
+      }
+    }
+  }
+
+  // 3. Suma wszystkich godzin na dole
+  const totalSpan = document.getElementById('totalHours');
+  if (totalSpan) {
+    totalSpan.innerText = formatSecondsHMS(totalSeconds);
+    totalSpan.className = `total-hours ${totalSeconds>9*3600?'red':'green'}`;
+  }
+
+  // --- KLUCZ: logika widoczności przycisku „Dodaj kolejny projekt” ---
+  const btn = document.querySelector('button[onclick="addAnotherProject()"]');
+  if (btn) {
+    // Ukryj jeśli: timerMode i JAKIKOLWIEK session.isRunning === true
+    btn.style.display = (timerMode && anySessionRunning) ? 'none' : '';
+  }
+}
+
+function updateHoursWithHalf(idx, val, half) {
+  state.entries[idx].hours = half ? val + 0.5 : val;
+  state.entries[idx].half = half;
+  renderFullSummary();
+}
+
+
+
+function pauseTimerSession(idx, workerOverride = null, dateStrOverride = null) {
+    const worker = workerOverride || state.worker;
+    const dateStr = dateStrOverride || getDayString();
+    let data = getFullTimerData(worker, dateStr);
+    let session = data.sessions[idx];
+    if (!session || !session.isRunning) return;
+
+    // Zakończ czas dla tej sesji
+    session.endTime = Date.now();
+    session.isRunning = false;
+    session.duration += Math.floor((session.endTime - session.startTime) / 1000);
+
+    setFullTimerData(worker, dateStr, data);
+
+    if (window.__fullSummaryTimer) {
+      clearInterval(window.__fullSummaryTimer);
+      window.__fullSummaryTimer = null;
+    }
+
+    renderFullSummary(worker, dateStr);
+    updateTimerButtonVisibility();
+}
+
+function resumeTimerSession(idx, workerOverride = null, dateStrOverride = null) {
+    const worker = workerOverride || state.worker;
+    const dateStr = dateStrOverride || getDayString();
+    let data = getFullTimerData(worker, dateStr);
+
+    // Najpierw zatrzymaj każdą inną aktywną sesję (żeby zawsze była tylko jedna aktywna)
+    data.sessions.forEach((s, i) => {
+        if (s.isRunning) {
+            s.endTime = Date.now();
+            s.isRunning = false;
+            s.duration += Math.floor((s.endTime - s.startTime) / 1000);
+        }
+    });
+
+    // Wznów wskazaną sesję
+    let session = data.sessions[idx];
+    if (!session || session.isRunning) return;
+    session.startTime = Date.now();
+    session.isRunning = true;
+
+    setFullTimerData(worker, dateStr, data);
+
+    if (window.__fullSummaryTimer) clearInterval(window.__fullSummaryTimer);
+    window.__fullSummaryTimer = setInterval(() => renderFullSummary(worker, dateStr), 1000);
+
+    renderFullSummary(worker, dateStr);
+    updateTimerButtonVisibility();
+}
+
+function deleteTimerSession(idx, workerOverride = null, dateStrOverride = null) {
+    const worker = workerOverride || state.worker;
+    const dateStr = dateStrOverride || getDayString();
+    let data = getFullTimerData(worker, dateStr);
+    if (!data.sessions) return;
+    data.sessions.splice(idx, 1);
+
+    // Jeśli nie ma żadnych sesji, wyłącz timerState
+    if (data.sessions.length === 0) {
+        data.timerState = "off";
+        if (window.__fullSummaryTimer) {
+            clearInterval(window.__fullSummaryTimer);
+            window.__fullSummaryTimer = null;
+        }
+    }
+    setFullTimerData(worker, dateStr, data);
+    renderFullSummary(worker, dateStr);
+    updateTimerButtonVisibility();
+    showToast("Usunięto timer");
+}
+
+
+
+
+
+
+function startTaskTimer(entry) {
+    stopCurrentTaskTimer(); // zamknij, jeśli coś już było
+
+    // Pobierz dane z localStorage na dziś
+    const dateStr = getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+
+    // Jeśli jest aktywna sesja — domknięcie czasu
+    if (data.sessions && data.sessions.length && data.sessions[data.sessions.length-1].isRunning) {
+        // zatrzymaj poprzednią
+        const prev = data.sessions[data.sessions.length-1];
+        prev.endTime = Date.now();
+        prev.isRunning = false;
+        prev.duration = Math.floor((prev.endTime - prev.startTime)/1000);
+    }
+
+    // Dodaj nową sesję
+    const newSession = {
+        ...entry,
+        startTime: Date.now(),
+        endTime: null,
+        isRunning: true,
+        duration: 0 // w sekundach
+    };
+    data.sessions = data.sessions || [];
+    data.sessions.push(newSession);
+
+    data.timerState = "inProgress";
+    setFullTimerData(state.worker, dateStr, data);
+
+    timerData = newSession; // trzymamy aktualny wpis
+
+    // Ekran podsumowania
+    showStep(5);
+
+    // **NOWOŚĆ — automatyczny podgląd timera w podsumowaniu**
+    if (window.__fullSummaryTimer) clearInterval(window.__fullSummaryTimer);
+    window.__fullSummaryTimer = setInterval(() => renderFullSummary(), 1000);
+
+    renderFullSummary(); // <- renderuj od razu, nie czekaj na kliknięcie!
+
+    // Ukryj "Dodaj kolejny projekt" tylko gdy jest tryb timera
+    const btn = document.querySelector('button[onclick="addAnotherProject()"]');
+    if (btn) btn.style.display = timerMode ? 'none' : '';
+
+    updateTimerButtonVisibility();
+}
+
+// obsługa przycisku
+async function handleUpdateTasks() {
+  if (!currentEntry?.category) return;
+  
+  const tasksByCat = await fetchTasksFromBackend();
+  const list = Array.from(new Set([
+    ...(subcategoriesMap[currentEntry.category] || []),
+    ...(tasksByCat[currentEntry.category] || [])
+  ]));
+
+  renderTiles('subcategories', list, subcat => {
+    currentEntry.subcategory = subcat;
+    document.getElementById('hourSection').style.display = 'block';
+  });
+  showToast("Zadania zaktualizowane");
+}
+
+
+
+
+    let lastClickedHour = null;
+let lastClickTime = 0;
+
+function renderHourTiles() {
+  const c = document.getElementById('hourTiles');
+  c.innerHTML = '';
+
+  for (let i = 1; i <= 15; i++) {
+    const d = document.createElement('div');
+    d.className = 'tile';
+    d.innerText = i;
+
+    // Obsługa dwukliku
+    d.onclick = () => {
+      const now = Date.now();
+      if (lastClickedHour === i && now - lastClickTime < 700) {
+        // Dwuklik — zamykamy wybór i przechodzimy dalej
+        currentEntry.hours = i;
+        currentEntry.half = false;
+        // Tu możesz zamknąć modal/przejść dalej:
+        document.getElementById('hourSection').style.display = 'none';
+        tryFinishEntry();
+        // Reset dwukliku
+        lastClickedHour = null;
+        lastClickTime = 0;
+        return;
+      }
+      lastClickedHour = i;
+      lastClickTime = now;
+      currentEntry.hours = i;
+      currentEntry.half = false;
+      renderHourTiles();
+    };
+
+    // Podświetl jeśli wybrane
+    if (currentEntry.hours === i && !currentEntry.half) d.classList.add('selected');
+    c.appendChild(d);
+
+    // Jeśli ta godzina jest wybrana – pod spodem pokaż przycisk +½h
+    if (currentEntry.hours === i) {
+      const halfBtn = document.createElement('div');
+      halfBtn.className = 'tile half-tile';
+      halfBtn.innerText = currentEntry.half ? (i + 0.5) : (i + " + ½h");
+      halfBtn.style.background = '#f9a82633';
+      halfBtn.style.fontWeight = currentEntry.half ? 'bold' : 'normal';
+
+      // Obsługa dwukliku na połówce
+      halfBtn.onclick = () => {
+        const now = Date.now();
+        if (lastClickedHour === i + 0.5 && now - lastClickTime < 700) {
+          currentEntry.hours = i;
+          currentEntry.half = true;
+          document.getElementById('hourSection').style.display = 'none';
+          tryFinishEntry();
+          lastClickedHour = null;
+          lastClickTime = 0;
+          return;
+        }
+        lastClickedHour = i + 0.5;
+        lastClickTime = now;
+        currentEntry.half = !currentEntry.half;
+        renderHourTiles();
+      };
+
+      if (currentEntry.half) halfBtn.classList.add('selected');
+      c.appendChild(halfBtn);
+    }
+  }
+}
+
+
+
+function tryFinishEntry() {
+  // Akceptuj wpis jeśli wybrano godzinę lub godzinę z połówką
+  if (currentEntry.subcategory && currentEntry.hours > 0) {
+    let totalHours = currentEntry.hours;
+    if (currentEntry.half) totalHours += 0.5;
+    state.entries.push({ ...currentEntry, hours: totalHours });
+    showStep(5);
+    renderFullSummary();
+  }
+}
+
+
+    
+
+
+    function removeEntry(idx) {
+      state.entries.splice(idx,1);
+      renderFullSummary();
+    }
+    function updateHours(idx,val) {
+      state.entries[idx].hours = val;
+      renderFullSummary();
+    }
+
+function addAnotherProject(){
+    if (timerMode) {
+        const dateStr = getDayString();
+        let data = getFullTimerData(state.worker, dateStr);
+        // Jeśli JAKIKOLWIEK timer jest isRunning – blokujemy dodanie nowego zadania
+        if (data.sessions && data.sessions.some(s => s.isRunning)) {
+            showToast("Najpierw zatrzymaj aktualny pomiar (STOP)", true);
+            return;
+        }
+    }
+    // Czyść licznik interwału po wyjściu z podsumowania
+    if (window.__fullSummaryTimer) {
+        clearInterval(window.__fullSummaryTimer);
+        window.__fullSummaryTimer = null;
+    }
+    showStep(2);
+    renderProjects();
+}
+
+function checkOvernightTimers(worker, dateStr) {
+  // Pobierz dane timerów użytkownika
+  const timerData = getFullTimerData(worker, dateStr);
+  const sessions = timerData.sessions || [];
+
+  const today = new Date().toDateString();
+
+  // Przejdź po wszystkich aktywnych sesjach
+  sessions.forEach((session, idx) => {
+    if (session.isRunning) {
+      const start = new Date(session.startTime);
+      // Jeśli startTime to NIE dzisiejsza data:
+      if (start.toDateString() !== today) {
+        // Pokaż popup TYLKO raz na wejście!
+        if (!window.__overnightPopupShown) {
+          window.__overnightPopupShown = true;
+          setTimeout(() => {
+            if (confirm(
+              "Wygląda na to, że timer został uruchomiony wczoraj (" +
+              start.toLocaleString() +
+              ").\nCzy chcesz zaliczyć cały czas do dzisiaj (co może dać zbyt wiele godzin), czy zakończyć timer wczoraj (i wpisać faktyczny czas zakończenia)?\n\nKliknij OK, aby zakończyć timer na koniec wczorajszego dnia, lub Anuluj, aby zostawić jak jest."
+            )) {
+              // Ustaw duration do końca dnia startu (np. 23:59:59)
+              const endOfStartDay = new Date(start);
+              endOfStartDay.setHours(23, 59, 59, 999);
+              session.duration += Math.floor((endOfStartDay - start) / 1000);
+              session.isRunning = false;
+              session.startTime = null;
+              saveFullTimerData(worker, dateStr, timerData);
+              alert("Timer został zakończony na koniec dnia " + start.toLocaleDateString());
+              renderFullSummary(worker, dateStr);
+            }
+            // Jeśli Anuluj, timer zostaje jak jest — może naliczyć 20h
+          }, 100); // mały delay, by nie zblokować interfejsu
+        }
+      }
+    }
+  });
+}
+
+window.showRecentEntries = async function() {
+  try {
+    const entries = await sendTelegramApiRequest('getRecentEntries', { days: 7 });
+
+    const html = `
+      <div id="entries-popup" style="position:fixed; top:10%; left:50%; transform:translateX(-50%);
+        background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+        max-height:80vh; overflow:auto; z-index:9999; border-radius:12px;">
+        <div style="text-align:center; margin-top:10px;">
+          <button onclick="document.getElementById('entries-popup').remove()">Zamknij</button>
+        </div>
+        <h3>Ostatnie wpisy</h3>
+        <table style="font-size:0.8rem; border-collapse:collapse; width:100%;">
+          <thead>
+            <tr>
+              <th>Data</th><th>Pracownik</th><th>Projekt</th>
+              <th>Kategoria</th><th>Zadanie</th><th>Godziny</th>
+              <th>Edytuj</th><th>Usuń</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${entries.map(e => `
+              <tr>
+                <td>${e.data}</td>
+                <td>${e.pracownik}</td>
+                <td>${e.projekt}</td>
+                <td>${e.kategoria}</td>
+                <td>${e.zadanie}</td>
+                <td>${formatSecondsToHhMm(e.godziny)}</td>
+                <td><button onclick="editEntry(${e.id})">✏️</button></td>
+                <td><button onclick="deleteEntry(${e.id})" style="color:red;">🗑️</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+  } catch (err) {
+    console.error("Błąd pobierania wpisów:", err);
+    showToast("Nie udało się pobrać wpisów", true);
+  }
+};
+
+
+    // ————— ZAPIS DO SHEETS —————
+    function submitData() {
+  actuallySubmitData(); // already updated previously to use Telegram API
+}
+
+
+   async function actuallySubmitData() {
+  try {
+    let values = [];
+
+    if (state.entries && state.entries.length) {
+      values = state.entries.map(e => ({
+        date: formatDateForSheets(new Date()),
+        worker: state.worker,
+        project: e.project,
+        category: e.category,
+        subcategory: e.subcategory,
+        hours: (typeof e.hours === "number") ? e.hours * 3600 : 0
+      }));
+    }
+
+    const dateStr = state.summaryDate || getDayString();
+    let data = getFullTimerData(state.worker, dateStr);
+
+    if (data.sessions && data.sessions.length) {
+      data.sessions.forEach(s => {
+        values.push({
+          date: formatDateForSheets(new Date(s.startTime)),
+          worker: state.worker,
+          project: s.project,
+          category: s.category,
+          subcategory: s.subcategory,
+          hours: Math.floor(s.duration || 0)
+        });
+      });
+    }
+
+    if (!values.length) {
+      showToast("Brak danych do zapisania!", true);
+      return;
+    }
+
+    localStorage.setItem("pendingSave", JSON.stringify({ values }));
+
+    await sendTelegramApiRequest('submitEntries', { entries: values });
+
+    localStorage.removeItem("pendingSave");
+    localStorage.removeItem(getTimerStorageKey(state.worker, dateStr));
+    localStorage.removeItem("workerStatusCache");
+
+    resetForm();
+    showToast("Dane zostały zapisane!");
+  } catch (err) {
+    console.error("Błąd zapisu danych:", err);
+    showToast("Błąd zapisu! Twoje dane są zachowane. Spróbuj ponownie.", true);
+  }
+}
+
+async function fetchProjectsFromBackend() {
+  try {
+    window.projects = await sendTelegramApiRequest('getProjects');
+    setCachedProjects(window.projects);
+    renderProjects();
+    showToast("Projekty zaktualizowane");
+  } catch (e) {
+    console.error("Błąd pobierania projektów:", e);
+    showToast("Błąd pobierania projektów", true);
+  }
+}
+
+
+/*Koniec fragmentu 5*/
+
+// ————— NOWA funkcja pobierająca zadania z arkusza NoweZadania —————
+async function fetchSubcategoriesFromSheet(category) {
+  if (!gapiInited) return [];
+  try {
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `NoweZadania!A2:B`
+    });
+    const rows = res.result.values || [];
+    return rows
+      .filter(row => row[0] === category && row[1])
+      .map(row => row[1]);
+  } catch (e) {
+    console.error("Błąd pobierania nowych zadań:", e);
+    return [];
+  }
+}
+
+
+function formatDateForSheets(date) {
+  const pad = n => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+const TIMER_USERS = ["Kamil", "Paweł"];
+
+function getDayString(offset = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split('T')[0];
+}
+
+
+
+
+// Obiekt z sesjami — zapisujemy pod kluczem timerData_<worker>_<data>
+function getFullTimerData(worker, dateStr) {
+    const key = getTimerStorageKey(worker, dateStr);
+    return JSON.parse(localStorage.getItem(key) || '{"sessions":[],"timerState":"off"}');
+}
+
+function setFullTimerData(worker, dateStr, data) {
+    const key = getTimerStorageKey(worker, dateStr);
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+function checkOvernightTimer(worker) {
+  const now = new Date();
+  const todayStr = getDayString();
+  const timers = loadTimerDataForWorker(worker);
+
+  for (const { dayStr, data } of timers) {
+    if (!data.sessions || !data.sessions.length) continue;
+    for (const session of data.sessions) {
+      if (session.isRunning && session.startTime) {
+        const sessionDate = new Date(session.startTime);
+        const sessionDayStr = sessionDate.toISOString().split('T')[0];
+        if (sessionDayStr !== todayStr) {
+          // Timer zaczął się innego dnia!
+          showOvernightTimerPopup({ worker, dayStr, session });
+          return true; // znalazło i pokazało popup, kończymy
+        }
+      }
+    }
+  }
+  return false; // nie znaleziono
+}
+
+function showOvernightTimerPopup({worker, dayStr, session}) {
+  const startDate = new Date(session.startTime);
+  const now = new Date();
+  const elapsed = Math.floor((now - startDate) / 1000);
+  const h = Math.floor(elapsed / 3600);
+  const m = Math.floor((elapsed % 3600) / 60);
+  const s = elapsed % 60;
+  const elapsedStr = [h, m, s].map(x => x.toString().padStart(2, '0')).join(':');
+
+  // Prosty modal
+  const html = `
+    <div id="overnight-popup" style="position:fixed;top:16%;left:50%;transform:translateX(-50%);
+      background:white;padding:24px 18px;box-shadow:0 0 20px #0003;z-index:9999;border-radius:16px;max-width:330px">
+      <h3>Wykryto timer z poprzedniego dnia!</h3>
+      <p>
+        Timer rozpoczęty: <b>${startDate.toLocaleString()}</b><br>
+        Aktualny czas: <b>${now.toLocaleString()}</b><br>
+        <b>Łączny czas:</b> ${elapsedStr}
+      </p>
+      <button onclick="acceptOvernightTimer('${worker}','${dayStr}')">
+        Zakończ timer i zapisz cały czas (${elapsedStr})
+      </button>
+      <button style="margin-left:12px" onclick="editOvernightTimer('${worker}','${dayStr}','${session.startTime}')">
+        Podaj ręcznie godzinę zakończenia
+      </button>
+      <br><br>
+      <button class="back-button" onclick="closeOvernightPopup()">Anuluj</button>
+    </div>
+  `;
+  document.getElementById('overnight-popup')?.remove();
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+
+function closeOvernightPopup() {
+  document.getElementById('overnight-popup')?.remove();
+}
+
+function acceptOvernightTimer(worker, dayStr) {
+  let data = getFullTimerData(worker, dayStr);
+  let session = (data.sessions||[]).find(s => s.isRunning);
+  if (!session) return;
+  session.endTime = Date.now();
+  session.duration += Math.floor((session.endTime - session.startTime)/1000);
+  session.isRunning = false;
+  setFullTimerData(worker, dayStr, data);
+  closeOvernightPopup();
+  showToast("Timer zakończony – możesz go teraz zapisać");
+  showStep(5);
+  renderOldTimerSummary(worker, dayStr);
+}
+
+function editOvernightTimer(worker, dayStr, startTime) {
+  const val = prompt("Podaj godzinę zakończenia (HH:MM, np. 18:30):", "18:00");
+  if (!val) return;
+  const [hh, mm] = val.split(':').map(Number);
+  if (isNaN(hh) || isNaN(mm)) {
+    showToast("Nieprawidłowy format godziny!", true);
+    return;
+  }
+  let endDate = new Date(Number(startTime));
+  endDate.setHours(hh, mm, 0, 0);
+  let endTime = endDate.getTime();
+  if (endTime < startTime) endTime += 24*3600*1000; // na wypadek przekroczenia północy
+
+  let data = getFullTimerData(worker, dayStr);
+  let session = (data.sessions||[]).find(s => s.isRunning);
+  if (!session) return;
+  session.endTime = endTime;
+  session.duration += Math.floor((endTime - session.startTime)/1000);
+  session.isRunning = false;
+  setFullTimerData(worker, dayStr, data);
+  closeOvernightPopup();
+  showToast("Czas poprawiony – możesz go teraz zapisać");
+  showStep(5);
+  renderOldTimerSummary(worker, dayStr);
+}
+
+
+function updateTimerButtonVisibility() {
+    const btn = document.getElementById('timer-toggle-btn');
+    if (!state.worker || !TIMER_USERS.includes(state.worker)) {
+        btn.style.display = 'none';
+        return;
+    }
+    btn.style.display = 'inline-block';
+
+    const dateStr = getDayString();
+    const data = getFullTimerData(state.worker, dateStr);
+    // Żółty — gdy jest choć jedna sesja niezapisana lub trwa
+    const anyActive = (data.sessions||[]).some(s => s.isRunning || !s.savedToSheet);
+    let timerState = data.timerState || "off";
+
+    if (anyActive) timerState = "inProgress"; // lub "yellow"
+    btn.textContent = (timerState === 'on' ? "⏱ Timer: ON" :
+                      timerState === 'off' ? "⏱ Timer: OFF" :
+                      "⏱ Timer: W TRAKCIE");
+    btn.style.background = timerState === 'on' ? "#28a745" : 
+                          timerState === 'off' ? "#d80000" : "#ffc107";
+    btn.style.color = (timerState === 'on' || timerState === 'off') ? "#fff" : "#222";
+}
+
+
+function handleTimerToggle() {
+    if (!state.worker || !TIMER_USERS.includes(state.worker)) return;
+
+    const dateStr = state.summaryDate || getDayString();
+    const data = getFullTimerData(state.worker, dateStr);
+
+    // Czy jest aktywna jakakolwiek sesja?
+    const anyActive = (data.sessions||[]).some(s => s.isRunning);
+
+    let timerState = getTimerState(state.worker);
+
+    if (timerState === "off") {
+        // Włącz tryb timera
+        timerState = "on";
+        timerMode = true;
+        showToast("Tryb timera WŁĄCZONY");
+    } else if (timerState === "on" || timerState === "inProgress") {
+        // Jeśli jest aktywny timer – NIE pozwalaj wyłączyć trybu!
+        if (anyActive) {
+            showToast("Najpierw zatrzymaj wszystkie aktywne timery!", true);
+            return;
+        }
+        // Wyłącz tryb timera (i pozwól na manual)
+        timerState = "off";
+        timerMode = false;
+        showToast("Tryb timera WYŁĄCZONY – możesz dodawać ręczne wpisy");
+    }
+
+    saveTimerState(state.worker, timerState);
+    updateTimerButtonVisibility();
+    renderFullSummary();
+}
+
+
+function goToSummary() {
+  showStep(5);
+  if (timerMode) renderFullSummary();
+  else renderFullSummary();
+}
+
+</script>  <!-- ZAMYKA główny skrypt -->
+
+<script>
+// Teraz już w czystym scope HTMLu:
+window.goBack            = goBack;
+window.handleAddCustom   = handleAddCustom;
+window.showRecentEntries = showRecentEntries;
+window.handleTimerToggle = handleTimerToggle;
+window.goToSummary       = goToSummary;
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('backBtn').addEventListener('click', goBack);
+  document.getElementById('addBtn').addEventListener('click', handleAddCustom);
+  document.getElementById('viewEntriesBtn').addEventListener('click', showRecentEntries);
+  document.getElementById('timer-toggle-btn').addEventListener('click', handleTimerToggle);
+  document.getElementById('go-summary-btn').addEventListener('click', goToSummary);
+
+  // Uruchom inicjalizację kafelków
+  resetForm();
+});
+</script>
+</body>
+</html>
